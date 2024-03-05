@@ -40,6 +40,7 @@ df
 3  4  two  23/04/1999  3.5  8.2
 4  5  two  01/01/1901  4.5  9.2
 ```
+
 # Applying some transformations
 
 The pipeline is instantiated with a dataset so we can get the previews.
@@ -64,6 +65,7 @@ Sample of transformed data:
 3  4  two  23/04/1999  3.5  8.2
 4  5  two  01/01/1901  4.5  9.2
 ```
+
 Roughly 3 APIs for adding steps have been proposed; other suggestions welcome.
 
 ## Option 1: with `Pipe.use()`
@@ -99,6 +101,7 @@ Sample of transformed data:
 3  4  1999.0      4.0   23.0     9.248256e+08  3.5  8.2    0.0    1.0
 4  5  1901.0      1.0    1.0    -2.177453e+09  4.5  9.2    0.0    1.0
 ```
+
 Notes:
 
 - the `name` parameter sets the step name in the scikit-learn pipeline.
@@ -132,6 +135,7 @@ Pipeline(steps=[('to_datetime',
                  OnColumnSelection(cols=string(), transformer=OneHotEncoder(sparse_output=False))),
                 ('ridge', Ridge())])
 ```
+
 This is a regular scikit-learn `Pipeline`.
 We can also see a more human-readable summary of the steps.
 
@@ -154,6 +158,7 @@ ridge:
     estimator: Ridge()
 
 ```
+
 ## Option 2: with `Selector.to_datetime()`, `Selector.use()`
 
 We can also have the `use` method directly on the selectors, some methods for commonly used estimators.
@@ -181,6 +186,7 @@ Sample of transformed data:
 3  4  1999.0      4.0   23.0     9.248256e+08  3.5  8.2    0.0    1.0
 4  5  1901.0      1.0    1.0    -2.177453e+09  4.5  9.2    0.0    1.0
 ```
+
 (Instead of `chain` it could be `apply`, `use`, `transform`, `with_steps`, ...)
 
 We can also pass directly an estimator (in which case the column selection is `s.all()`), and the selectors have a `.use()` method for using estimators that haven't been registered as methods.
@@ -207,6 +213,7 @@ Sample of transformed data:
 3  4  1999.0      4.0   23.0     9.248256e+08  3.5  8.2    0.0    1.0
 4  5  1901.0      1.0    1.0    -2.177453e+09  4.5  9.2    0.0    1.0
 ```
+
 ## Option3: with `Pipe.cols().to_datetime()`, `Pipe.cols().use()`
 
 The third option adds a method `.cols` (or maybe `.on_cols`) to the pipeline to which we pass the selector.
@@ -234,6 +241,7 @@ Sample of transformed data:
 3  4  1999.0      4.0   23.0     9.248256e+08  3.5  8.2    0.0    1.0
 4  5  1901.0      1.0    1.0    -2.177453e+09  4.5  9.2    0.0    1.0
 ```
+
 Notes:
 
 Methods that add an estimator (eg `encode_datetime()`) have to return the `Pipe` object itself, so it's not clear where we should provide configuration such as the step name.
@@ -265,6 +273,7 @@ Sample of transformed data:
 3  4  1999.0      4.0   23.0     9.248256e+08  3.5  8.2    0.0    1.0
 4  5  1901.0      1.0    1.0    -2.177453e+09  4.5  9.2    0.0    1.0
 ```
+
 As the `.cols()` looks like we are indexing the data it may be a bit surprising if someone expects the result of the transformation on just those columns to be returned:
 
 ```python
@@ -284,6 +293,7 @@ Sample of transformed data:
 3  23/04/1999  3.5  8.2    0.0    0.0    0.0    1.0    0.0    0.0    1.0
 4  01/01/1901  4.5  9.2    0.0    0.0    0.0    0.0    1.0    0.0    1.0
 ```
+
 A user could be surprised to see "C", "D", "E", and "F" in the output above.
 
 ## Discarded options
@@ -343,6 +353,7 @@ Sample of transformed data:
 3  4  1999.0      4.0     9.248256e+08  3.5  8.2    0.0    1.0
 4  5  1901.0      1.0    -2.177453e+09  4.5  9.2    0.0    1.0
 ```
+
 We can see a summary of the hyperparameter grid:
 
 ```python
@@ -360,6 +371,7 @@ print(p.param_grid_description)
       - 10.0
 
 ```
+
 (and of the steps)
 
 ```python
@@ -381,6 +393,7 @@ ridge:
     estimator: Ridge(alpha=choose(1.0, 10.0).name('α'))
 
 ```
+
 And we can obtain a scikit-learn `GridSearchCV` that we can use to tune hyperparameters.
 This is not yet in the prototybe but we should also have methods (or a parameter) to get a randomised or successive halving object instead.
 
@@ -430,6 +443,7 @@ print(p.param_grid_description)
       - 10.0
 
 ```
+
 ## `Pipe.cols` (option 3)
 
 ```python
@@ -455,6 +469,7 @@ print(p.param_grid_description)
       - 10.0
 
 ```
+
 </details>
 
 
@@ -494,6 +509,7 @@ Sample of transformed data:
 3  4  1999.0      4.0     9.248256e+08  3.5  8.2    0.0    1.0
 4  5  1901.0      1.0    -2.177453e+09  4.5  9.2    0.0    1.0
 ```
+
 ```python
 print(p.pipeline_description)
 ```
@@ -513,6 +529,7 @@ bagging_regressor:
     estimator: BaggingRegressor(estimator=choose(Ridge(alpha=choose(1.0, 10.0).name('α')), LogisticRegression(C=choose(0.1, 1.0).name('C'))).name('bagged'))
 
 ```
+
 ```python
 print(p.param_grid_description)
 ```
@@ -538,6 +555,7 @@ print(p.param_grid_description)
       - 1.0
 
 ```
+
 # Choosing among several estimators
 
 We may also want to choose among several estimators, ie have a choice for the whole step.
@@ -578,6 +596,7 @@ Sample of transformed data:
 3  4  1999.0      4.0     9.248256e+08  3.5  8.2    0.0    1.0
 4  5  1901.0      1.0    -2.177453e+09  4.5  9.2    0.0    1.0
 ```
+
 ```python
 print(p.pipeline_description)
 ```
@@ -603,6 +622,7 @@ regressor:
           estimator: LogisticRegression(C=choose(0.1, 1.0).name('C'))
 
 ```
+
 ```python
 print(p.param_grid_description)
 ```
@@ -681,6 +701,7 @@ print(p.param_grid_description)
       - 1.0
 
 ```
+
 ## `Pipe.cols` (option 3)
 
 ```python
@@ -725,6 +746,7 @@ print(p.param_grid_description)
       - 1.0
 
 ```
+
 </details>
 
 
