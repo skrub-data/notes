@@ -472,6 +472,9 @@ Sample of transformed data:
 3  4  1999.0      4.0     9.248256e+08  3.5  8.2    0.0    1.0
 4  5  1901.0      1.0    -2.177453e+09  4.5  9.2    0.0    1.0
 
+```
+
+```
 >>> print(p.pipeline_description)
 to_datetime:
     cols: ['C']
