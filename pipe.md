@@ -11,7 +11,9 @@ In particular it should offer:
 - a way to very easily add steps that rely on one of the most commonly-used estimators such as `Ridge`, `HistGradientBoostingRegressor`.
 - a way to add steps that rely on any scikit-learn compatible estimator
 - a way to specify ranges of hyperparameters (for tuning) as the pipeline is being constructed.
-- a way to perform cross-validation and hyperparameter search, eg by obtaining a scikit-learn GridSearchCV or  Pipeline and using scikit-learn cross-validation tools.
+- a way to perform cross-validation and hyperparameter search, eg by obtaining a scikit-learn GridSearchCV or Pipeline and using scikit-learn cross-validation tools, once we satisfied with the pipeline we built.
+
+The prototype used for the examples here (which will be updated as we make decisions) is in [this branch](https://github.com/jeromedockes/skrub/tree/pipeline).
 
 here is some toy data:
 
