@@ -105,6 +105,7 @@ Notes:
   It could be something more explicit like `step_name`.
 - The preview shows the transformation part of the pipeline only, ie stops before the final predictor if there is one.
 
+
 <details>
 <summary>Implicitly selecting columns for which a transformer applies.</summary>
 A transformer can reject columns for which it doesn't apply, in which case they are passed through.
@@ -113,6 +114,8 @@ Instead of `pipe.use(ToDatetime(), cols="C")`, if we didn't know in advance whic
 We can have a "strict" mode (which can be the default) where that would result in an error and we would be forced to specify `pipe.use(ToDatetime(), cols="C")`.
 See [#877](https://github.com/skrub-data/skrub/pull/877) for more discussion.
 </details>
+
+<br/>
 
 We can then extract a scikit-learn Pipeline that we can cross-validate etc.
 
@@ -324,7 +327,7 @@ from skrub._pipe import choose
     .use(EncodeDatetime(resolution=choose("month", "day").name("time res")),
          cols=s.any_date())
     .use(OneHotEncoder(sparse_output=False), cols=s.string())
-    .use(Ridge(alpha=choose(1.0, 10.0, 100.0).name("α")))
+    .use(Ridge(alpha=choose(1.0, 10.0).name("α")))
 )
 ```
 <!-- output -->
@@ -355,7 +358,6 @@ print(p.param_grid_description)
   'α':
       - 1.0
       - 10.0
-      - 100.0
 
 ```
 (and of the steps)
@@ -376,7 +378,7 @@ one_hot_encoder:
     estimator: OneHotEncoder(sparse_output=False)
 ridge:
     cols: all()
-    estimator: Ridge(alpha=choose(1.0, 10.0, 100.0).name('α'))
+    estimator: Ridge(alpha=choose(1.0, 10.0).name('α'))
 
 ```
 And we can obtain a scikit-learn `GridSearchCV` that we can use to tune hyperparameters.
@@ -397,12 +399,14 @@ GridSearchCV(estimator=Pipeline(steps=[('to_datetime',
              param_grid=[{'encode_datetime': choose(<EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>),
                           'encode_datetime__transformer__resolution': choose('month', 'day').name('time res'),
                           'ridge': choose(Ridge(alpha=<α>)),
-                          'ridge__alpha': choose(1.0, 10.0, 100.0).name('α')}])
+                          'ridge__alpha': choose(1.0, 10.0).name('α')}])
 ```
+
+
 <details>
 <summary>hyperparameter choice with the alternative APIs</summary>
 
-## `Selector.use`
+## `Selector.use` (option 2)
 
 ```python
 p = pipe.chain(
@@ -426,7 +430,7 @@ print(p.param_grid_description)
       - 10.0
 
 ```
-## `Pipe.cols`
+## `Pipe.cols` (option 3)
 
 ```python
 p = (
@@ -452,6 +456,7 @@ print(p.param_grid_description)
 
 ```
 </details>
+
 
 # Choices in nested estimators
 
@@ -627,10 +632,12 @@ print(p.param_grid_description)
       - 1.0
 
 ```
+
+
 <details>
 <summary>With the allternative APIs</summary>
 
-## `Selector.use`
+## `Selector.use` (option 2)
 
 ```python
 p = pipe.chain(
@@ -674,7 +681,7 @@ print(p.param_grid_description)
       - 1.0
 
 ```
-## `Pipe.cols`
+## `Pipe.cols` (option 3)
 
 ```python
 p = (
@@ -719,3 +726,5 @@ print(p.param_grid_description)
 
 ```
 </details>
+
+
