@@ -10,8 +10,8 @@ In particular it should offer:
 - previews of a sample of the data transformed with the current pipeline.
 - a way to very easily add steps that rely on one of the most commonly-used estimators such as `Ridge`, `HistGradientBoostingRegressor`.
 - a way to add steps that rely on any scikit-learn compatible estimator
-- a way to specify hyperparameters to explore as the pipeline is being constructed.
-- a way to perform cross-validation and hyperparameter search, eg by obtaining a scikit-learn GridSearch or  Pipeline and using scikit-learn cross-validation tools.
+- a way to specify ranges of hyperparameters (for tuning) as the pipeline is being constructed.
+- a way to perform cross-validation and hyperparameter search, eg by obtaining a scikit-learn GridSearchCV or  Pipeline and using scikit-learn cross-validation tools.
 
 here is some toy data:
 
@@ -46,7 +46,9 @@ dtype: object
 
 # Applying some transformations
 
-The pipeline is instantiated with a dataset so we can get the previews
+The pipeline is instantiated with a dataset so we can get the previews.
+
+__Note:__ don't pay attention to the skrub imports for now; anything we decide to put in the public API will be importable directly from `skrub`.
 
 ```
 >>> from skrub._pipe import Pipe, choose
@@ -254,6 +256,22 @@ Sample of transformed data:
 ```
 
 A user could be surprised to see "C", "D", "E", and "F" in the output above.
+
+## Discarded options
+
+Having the estimator methods directly on the `Pipe` rather than on `pipe.cols`
+
+```
+(
+    pipe
+    .to_datetime().on_cols("C")
+    .encode_datetime().on_cols(s.any_date()).name("encode-dt")
+    .one_hot_encoder(sparse_output=False).on_cols(s.string())
+    .ridge()
+)
+```
+
+Note that this one would _require_ having methods on `Pipe` such as `on_cols` that implicitly apply to the last step.
 
 # Choosing hyperparameters
 
