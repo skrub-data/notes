@@ -53,7 +53,7 @@ The pipeline is instantiated with a dataset so we can get the previews.
 __Note:__ don't pay attention to the skrub imports for now; anything we decide to put in the public API will be importable directly from `skrub`.
 
 ```
->>> from skrub._pipe import Pipe, choose
+>>> from skrub._pipe import Pipe
 >>> from skrub import selectors as s
 
 >>> pipe = Pipe(df)
@@ -129,6 +129,26 @@ Pipeline(steps=[('to_datetime',
                 ('one_hot_encoder',
                  OnColumnSelection(cols=string(), transformer=OneHotEncoder(sparse_output=False))),
                 ('ridge', Ridge())])
+
+```
+
+This is a regular scikit-learn `Pipeline`.
+We can also see a more human-readable summary of the steps.
+
+```
+>>> print(p.pipeline_description)
+to_datetime:
+    cols: ['C']
+    estimator: ToDatetime()
+encode-dt:
+    cols: any_date()
+    estimator: EncodeDatetime()
+one_hot_encoder:
+    cols: string()
+    estimator: OneHotEncoder(sparse_output=False)
+ridge:
+    cols: all()
+    estimator: Ridge()
 
 ```
 
@@ -313,6 +333,11 @@ Sample of transformed data:
 3  4  1999.0      4.0     9.248256e+08  3.5  8.2    0.0    1.0
 4  5  1901.0      1.0    -2.177453e+09  4.5  9.2    0.0    1.0
 
+```
+
+We can see a summary of the hyperparameter grid:
+
+```
 >>> print(p.param_grid_description)
 - 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
   'time res':
@@ -324,6 +349,31 @@ Sample of transformed data:
       - 10.0
       - 100.0
 
+```
+
+(and of the steps)
+
+```
+>>> print(p.pipeline_description)
+to_datetime:
+    cols: ['C']
+    estimator: ToDatetime()
+encode_datetime:
+    cols: any_date()
+    estimator: EncodeDatetime(resolution=choose('month', 'day').name('time res'))
+one_hot_encoder:
+    cols: string()
+    estimator: OneHotEncoder(sparse_output=False)
+ridge:
+    cols: all()
+    estimator: Ridge(alpha=choose(1.0, 10.0, 100.0).name('α'))
+
+```
+
+And we can obtain a scikit-learn `GridSearchCV` that we can use to tune hyperparameters.
+This is not yet in the prototybe but we should also have methods (or a parameter) to get a randomised or successive halving object instead.
+
+```
 >>> p.grid_search
 GridSearchCV(estimator=Pipeline(steps=[('to_datetime',
                                         OnEachColumn(cols=['C'], transformer=ToDatetime())),
@@ -389,15 +439,87 @@ GridSearchCV(estimator=Pipeline(steps=[('to_datetime',
 ```
 </details>
 
+# Choices in nested estimators
+
+Using `choose` for sub-estimators or their hyperparameters works as expected.
+
+```
+>>> from sklearn.ensemble import BaggingRegressor
+>>> from sklearn.linear_model import LogisticRegression
+
+>>> regressor = BaggingRegressor(
+...     choose(
+...         Ridge(alpha=choose(1.0, 10.0).name("α")),
+...         LogisticRegression(C=choose(0.1, 1.0).name("C")),
+...     ).name("bagged")
+... )
+>>> (
+...     p := pipe
+...     .use(ToDatetime(), cols="C")
+...     .use(EncodeDatetime(resolution=choose("month", "day").name("time res")),
+...          cols=s.any_date())
+...     .use(OneHotEncoder(sparse_output=False), cols=s.string())
+...     .use(regressor)
+... )
+<Pipe: 3 transformations + BaggingRegressor>
+Steps:
+0: to_datetime, 1: encode_datetime, 2: one_hot_encoder, 3: bagging_regressor
+Sample of transformed data:
+   A  C_year  C_month  C_total_seconds    D    E  B_one  B_two
+0  3  2012.0      2.0     1.328918e+09  2.5  7.2    0.0    1.0
+1  1  1998.0      2.0     8.862912e+08  0.5  5.2    1.0    0.0
+2  2  2027.0      3.0     1.804637e+09  1.5  6.2    1.0    0.0
+3  4  1999.0      4.0     9.248256e+08  3.5  8.2    0.0    1.0
+4  5  1901.0      1.0    -2.177453e+09  4.5  9.2    0.0    1.0
+
+>>> print(p.pipeline_description)
+to_datetime:
+    cols: ['C']
+    estimator: ToDatetime()
+encode_datetime:
+    cols: any_date()
+    estimator: EncodeDatetime(resolution=choose('month', 'day').name('time res'))
+one_hot_encoder:
+    cols: string()
+    estimator: OneHotEncoder(sparse_output=False)
+bagging_regressor:
+    cols: all()
+    estimator: BaggingRegressor(estimator=choose(Ridge(alpha=choose(1.0, 10.0).name('α')), LogisticRegression(C=choose(0.1, 1.0).name('C'))).name('bagged'))
+
+```
+
+```
+>>> print(p.param_grid_description)
+- 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
+  'time res':
+      - month
+      - day
+  'bagging_regressor': BaggingRegressor(estimator=<bagged>)
+  'bagged': Ridge(alpha=<α>)
+  'α':
+      - 1.0
+      - 10.0
+- 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
+  'time res':
+      - month
+      - day
+  'bagging_regressor': BaggingRegressor(estimator=<bagged>)
+  'bagged': LogisticRegression(C=<C>)
+  'C':
+      - 0.1
+      - 1.0
+
+```
+
+
 # Choosing among several estimators
 
-We may also want to choose among several estimators.
+We may also want to choose among several estimators, ie have a choice for the whole step.
 We can pass a `Choice` to `use`: `pipe.use(choose(Ridge(), LogisticRegression()))`.
 For convenience, to remove one nested call, the `Pipe` can also have a `choose` method:
 `pipe.choose(opt1, opt2)` is shorthand for `pipe.use(choose(opt1, opt2))`.
 
 ```
->>> from sklearn.linear_model import LogisticRegression
 >>> from sklearn.preprocessing import OrdinalEncoder
 
 >>> (
@@ -427,6 +549,32 @@ Sample of transformed data:
 3  4  1999.0      4.0     9.248256e+08  3.5  8.2    0.0    1.0
 4  5  1901.0      1.0    -2.177453e+09  4.5  9.2    0.0    1.0
 
+```
+
+```
+>>> print(p.pipeline_description)
+to_datetime:
+    cols: ['C']
+    estimator: ToDatetime()
+encode_datetime:
+    cols: any_date()
+    estimator: EncodeDatetime(resolution=choose('month', 'day').name('time res'))
+cat-encoder:
+    choose:
+        - cols: string()
+          estimator: OneHotEncoder(sparse_output=False)
+        - cols: string()
+          estimator: OrdinalEncoder()
+regressor:
+    choose:
+        - cols: all()
+          estimator: Ridge(alpha=choose(1.0, 10.0).name('α'))
+        - cols: all()
+          estimator: LogisticRegression(C=choose(0.1, 1.0).name('C'))
+
+```
+
+```
 >>> print(p.param_grid_description)
 - 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
   'time res':
@@ -540,4 +688,3 @@ Sample of transformed data:
 
 ```
 </details>
-
