@@ -95,12 +95,28 @@ Steps:
 0: to_datetime, 1: encode-dt, 2: one_hot_encoder, 3: ridge
 Sample of transformed data:
    A  C_year  C_month  C_day  C_total_seconds    D    E  B_one  B_two
-0  3  2012.0      2.0   11.0     1.328918e+09  2.5  7.2    0.0    1.0
-1  1  1998.0      2.0    1.0     8.862912e+08  0.5  5.2    1.0    0.0
-2  2  2027.0      3.0   10.0     1.804637e+09  1.5  6.2    1.0    0.0
-3  4  1999.0      4.0   23.0     9.248256e+08  3.5  8.2    0.0    1.0
-4  5  1901.0      1.0    1.0    -2.177453e+09  4.5  9.2    0.0    1.0
+0  3  2012.0      2.0   11.0     1328918400.0  2.5  7.2    0.0    1.0
+1  1  1998.0      2.0    1.0      886291200.0  0.5  5.2    1.0    0.0
+2  2  2027.0      3.0   10.0     1804636800.0  1.5  6.2    1.0    0.0
+3  4  1999.0      4.0   23.0      924825600.0  3.5  8.2    0.0    1.0
+4  5  1901.0      1.0    1.0    -2177452800.0  4.5  9.2    0.0    1.0
 ```
+
+By default the preview is a random sample, we can also see the first few rows:
+
+```python
+p.head()
+```
+<!-- output -->
+```
+   A  C_year  C_month  C_day  C_total_seconds    D    E  B_one  B_two
+0  1  1998.0      2.0    1.0      886291200.0  0.5  5.2    1.0    0.0
+1  2  2027.0      3.0   10.0     1804636800.0  1.5  6.2    1.0    0.0
+2  3  2012.0      2.0   11.0     1328918400.0  2.5  7.2    0.0    1.0
+3  4  1999.0      4.0   23.0      924825600.0  3.5  8.2    0.0    1.0
+4  5  1901.0      1.0    1.0    -2177452800.0  4.5  9.2    0.0    1.0
+```
+
 
 Notes:
 
@@ -159,6 +175,39 @@ ridge:
 
 ```
 
+If the transformation fails we see at which step it failed and the input data for the failing step:
+
+```python
+from sklearn.preprocessing import StandardScaler
+
+(
+    pipe
+    .use(ToDatetime())
+    .use(StandardScaler())
+    .use(Ridge())
+)
+```
+<!-- output -->
+```
+<Pipe: 2 transformations + Ridge>
+Steps:
+0: to_datetime, 1: standard_scaler, 2: ridge
+Transformation failed at step 'standard_scaler'.
+Input data for this step:
+   A    B          C    D    E
+2  3  two 2012-02-11  2.5  7.2
+0  1  one 1998-02-01  0.5  5.2
+1  2  one 2027-03-10  1.5  6.2
+3  4  two 1999-04-23  3.5  8.2
+4  5  two 1901-01-01  4.5  9.2
+Error message:
+    ValueError: could not convert string to float: 'two'
+Note:
+    You can remove steps with `.pop()`. Use `.sample()` to trigger the error again and see the full traceback.
+```
+
+`.sample()` and `.head()` don't catch the exception so it can be inspected.
+
 ## Option 2: with `Selector.to_datetime()`, `Selector.use()`
 
 We can also have the `use` method directly on the selectors, some methods for commonly used estimators.
@@ -180,11 +229,11 @@ Steps:
 0: to_datetime, 1: encode-dt, 2: one_hot_encoder, 3: ridge
 Sample of transformed data:
    A  C_year  C_month  C_day  C_total_seconds    D    E  B_one  B_two
-0  3  2012.0      2.0   11.0     1.328918e+09  2.5  7.2    0.0    1.0
-1  1  1998.0      2.0    1.0     8.862912e+08  0.5  5.2    1.0    0.0
-2  2  2027.0      3.0   10.0     1.804637e+09  1.5  6.2    1.0    0.0
-3  4  1999.0      4.0   23.0     9.248256e+08  3.5  8.2    0.0    1.0
-4  5  1901.0      1.0    1.0    -2.177453e+09  4.5  9.2    0.0    1.0
+0  3  2012.0      2.0   11.0     1328918400.0  2.5  7.2    0.0    1.0
+1  1  1998.0      2.0    1.0      886291200.0  0.5  5.2    1.0    0.0
+2  2  2027.0      3.0   10.0     1804636800.0  1.5  6.2    1.0    0.0
+3  4  1999.0      4.0   23.0      924825600.0  3.5  8.2    0.0    1.0
+4  5  1901.0      1.0    1.0    -2177452800.0  4.5  9.2    0.0    1.0
 ```
 
 (Instead of `chain` it could be `apply`, `use`, `transform`, `with_steps`, ...)
@@ -207,11 +256,11 @@ Steps:
 0: to_datetime, 1: encode-dt, 2: one_hot_encoder, 3: ridge
 Sample of transformed data:
    A  C_year  C_month  C_day  C_total_seconds    D    E  B_one  B_two
-0  3  2012.0      2.0   11.0     1.328918e+09  2.5  7.2    0.0    1.0
-1  1  1998.0      2.0    1.0     8.862912e+08  0.5  5.2    1.0    0.0
-2  2  2027.0      3.0   10.0     1.804637e+09  1.5  6.2    1.0    0.0
-3  4  1999.0      4.0   23.0     9.248256e+08  3.5  8.2    0.0    1.0
-4  5  1901.0      1.0    1.0    -2.177453e+09  4.5  9.2    0.0    1.0
+0  3  2012.0      2.0   11.0     1328918400.0  2.5  7.2    0.0    1.0
+1  1  1998.0      2.0    1.0      886291200.0  0.5  5.2    1.0    0.0
+2  2  2027.0      3.0   10.0     1804636800.0  1.5  6.2    1.0    0.0
+3  4  1999.0      4.0   23.0      924825600.0  3.5  8.2    0.0    1.0
+4  5  1901.0      1.0    1.0    -2177452800.0  4.5  9.2    0.0    1.0
 ```
 
 ## Option3: with `Pipe.cols().to_datetime()`, `Pipe.cols().use()`
@@ -235,11 +284,11 @@ Steps:
 0: to_datetime, 1: encode_datetime, 2: one_hot_encoder, 3: ridge
 Sample of transformed data:
    A  C_year  C_month  C_day  C_total_seconds    D    E  B_one  B_two
-0  3  2012.0      2.0   11.0     1.328918e+09  2.5  7.2    0.0    1.0
-1  1  1998.0      2.0    1.0     8.862912e+08  0.5  5.2    1.0    0.0
-2  2  2027.0      3.0   10.0     1.804637e+09  1.5  6.2    1.0    0.0
-3  4  1999.0      4.0   23.0     9.248256e+08  3.5  8.2    0.0    1.0
-4  5  1901.0      1.0    1.0    -2.177453e+09  4.5  9.2    0.0    1.0
+0  3  2012.0      2.0   11.0     1328918400.0  2.5  7.2    0.0    1.0
+1  1  1998.0      2.0    1.0      886291200.0  0.5  5.2    1.0    0.0
+2  2  2027.0      3.0   10.0     1804636800.0  1.5  6.2    1.0    0.0
+3  4  1999.0      4.0   23.0      924825600.0  3.5  8.2    0.0    1.0
+4  5  1901.0      1.0    1.0    -2177452800.0  4.5  9.2    0.0    1.0
 ```
 
 Notes:
@@ -267,11 +316,11 @@ Steps:
 0: to_datetime, 1: encode_datetime, 2: one_hot_encoder, 3: ridge
 Sample of transformed data:
    A  C_year  C_month  C_day  C_total_seconds    D    E  B_one  B_two
-0  3  2012.0      2.0   11.0     1.328918e+09  2.5  7.2    0.0    1.0
-1  1  1998.0      2.0    1.0     8.862912e+08  0.5  5.2    1.0    0.0
-2  2  2027.0      3.0   10.0     1.804637e+09  1.5  6.2    1.0    0.0
-3  4  1999.0      4.0   23.0     9.248256e+08  3.5  8.2    0.0    1.0
-4  5  1901.0      1.0    1.0    -2.177453e+09  4.5  9.2    0.0    1.0
+0  3  2012.0      2.0   11.0     1328918400.0  2.5  7.2    0.0    1.0
+1  1  1998.0      2.0    1.0      886291200.0  0.5  5.2    1.0    0.0
+2  2  2027.0      3.0   10.0     1804636800.0  1.5  6.2    1.0    0.0
+3  4  1999.0      4.0   23.0      924825600.0  3.5  8.2    0.0    1.0
+4  5  1901.0      1.0    1.0    -2177452800.0  4.5  9.2    0.0    1.0
 ```
 
 As the `.cols()` looks like we are indexing the data it may be a bit surprising if someone expects the result of the transformation on just those columns to be returned:
@@ -347,11 +396,11 @@ Steps:
 0: to_datetime, 1: encode_datetime, 2: one_hot_encoder, 3: ridge
 Sample of transformed data:
    A  C_year  C_month  C_total_seconds    D    E  B_one  B_two
-0  3  2012.0      2.0     1.328918e+09  2.5  7.2    0.0    1.0
-1  1  1998.0      2.0     8.862912e+08  0.5  5.2    1.0    0.0
-2  2  2027.0      3.0     1.804637e+09  1.5  6.2    1.0    0.0
-3  4  1999.0      4.0     9.248256e+08  3.5  8.2    0.0    1.0
-4  5  1901.0      1.0    -2.177453e+09  4.5  9.2    0.0    1.0
+0  3  2012.0      2.0     1328918400.0  2.5  7.2    0.0    1.0
+1  1  1998.0      2.0      886291200.0  0.5  5.2    1.0    0.0
+2  2  2027.0      3.0     1804636800.0  1.5  6.2    1.0    0.0
+3  4  1999.0      4.0      924825600.0  3.5  8.2    0.0    1.0
+4  5  1901.0      1.0    -2177452800.0  4.5  9.2    0.0    1.0
 ```
 
 We can see a summary of the hyperparameter grid:
@@ -503,11 +552,11 @@ Steps:
 0: to_datetime, 1: encode_datetime, 2: one_hot_encoder, 3: bagging_regressor
 Sample of transformed data:
    A  C_year  C_month  C_total_seconds    D    E  B_one  B_two
-0  3  2012.0      2.0     1.328918e+09  2.5  7.2    0.0    1.0
-1  1  1998.0      2.0     8.862912e+08  0.5  5.2    1.0    0.0
-2  2  2027.0      3.0     1.804637e+09  1.5  6.2    1.0    0.0
-3  4  1999.0      4.0     9.248256e+08  3.5  8.2    0.0    1.0
-4  5  1901.0      1.0    -2.177453e+09  4.5  9.2    0.0    1.0
+0  3  2012.0      2.0     1328918400.0  2.5  7.2    0.0    1.0
+1  1  1998.0      2.0      886291200.0  0.5  5.2    1.0    0.0
+2  2  2027.0      3.0     1804636800.0  1.5  6.2    1.0    0.0
+3  4  1999.0      4.0      924825600.0  3.5  8.2    0.0    1.0
+4  5  1901.0      1.0    -2177452800.0  4.5  9.2    0.0    1.0
 ```
 
 ```python
@@ -590,11 +639,11 @@ Steps:
 0: to_datetime, 1: encode_datetime, 2: cat-encoder, 3: regressor
 Sample of transformed data:
    A  C_year  C_month  C_total_seconds    D    E  B_one  B_two
-0  3  2012.0      2.0     1.328918e+09  2.5  7.2    0.0    1.0
-1  1  1998.0      2.0     8.862912e+08  0.5  5.2    1.0    0.0
-2  2  2027.0      3.0     1.804637e+09  1.5  6.2    1.0    0.0
-3  4  1999.0      4.0     9.248256e+08  3.5  8.2    0.0    1.0
-4  5  1901.0      1.0    -2.177453e+09  4.5  9.2    0.0    1.0
+0  3  2012.0      2.0     1328918400.0  2.5  7.2    0.0    1.0
+1  1  1998.0      2.0      886291200.0  0.5  5.2    1.0    0.0
+2  2  2027.0      3.0     1804636800.0  1.5  6.2    1.0    0.0
+3  4  1999.0      4.0      924825600.0  3.5  8.2    0.0    1.0
+4  5  1901.0      1.0    -2177452800.0  4.5  9.2    0.0    1.0
 ```
 
 ```python
