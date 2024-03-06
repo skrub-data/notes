@@ -203,7 +203,8 @@ Input data for this step:
 Error message:
     ValueError: could not convert string to float: 'two'
 Note:
-    You can remove steps with `.pop()`. Use `.sample()` to trigger the error again and see the full traceback.
+    Use `.sample()` to trigger the error again and see the full traceback.
+    You can remove steps from the pipeline with `.pop()`.
 ```
 
 `.sample()` and `.head()` don't catch the exception so it can be inspected.
