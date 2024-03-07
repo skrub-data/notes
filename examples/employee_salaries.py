@@ -13,13 +13,13 @@ pipe = Pipe(employees)
 pipe
 # -
 
-pipe.skrubview_report
+pipe.get_skrubview_report()
 
 pipe = pipe.use(TableVectorizer(high_cardinality_transformer=MinHashEncoder()))
 pipe = pipe.use(HistGradientBoostingRegressor())
 pipe
 
-pipe.skrubview_report
+pipe.get_skrubview_report()
 
 # +
 from sklearn.model_selection import cross_val_score
