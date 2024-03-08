@@ -109,12 +109,16 @@ p.head()
 ```
 <!-- output -->
 ```
-   A  C_year  C_month  C_day  C_total_seconds    D    E  B_one  B_two
-0  1  1998.0      2.0    1.0      886291200.0  0.5  5.2    1.0    0.0
-1  2  2027.0      3.0   10.0     1804636800.0  1.5  6.2    1.0    0.0
-2  3  2012.0      2.0   11.0     1328918400.0  2.5  7.2    0.0    1.0
-3  4  1999.0      4.0   23.0      924825600.0  3.5  8.2    0.0    1.0
-4  5  1901.0      1.0    1.0    -2177452800.0  4.5  9.2    0.0    1.0
+Traceback (most recent call last):
+  File "/home/jerome/scripts/run_markdown.py", line 75, in parse_block
+    val = _exec(code, self.namespace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jerome/scripts/run_markdown.py", line 119, in _exec
+    return eval(
+           ^^^^^
+  File "<cell>", line 1, in <module>
+AttributeError: 'Pipe' object has no attribute 'head'
+
 ```
 
 
@@ -139,7 +143,7 @@ See [#877](https://github.com/skrub-data/skrub/pull/877) for more discussion.
 We can then extract a scikit-learn Pipeline that we can cross-validate etc.
 
 ```python
-p.pipeline
+p.get_pipeline()
 ```
 <!-- output -->
 ```
@@ -156,7 +160,7 @@ This is a regular scikit-learn `Pipeline`.
 We can also see a more human-readable summary of the steps.
 
 ```python
-print(p.pipeline_description)
+print(p.get_pipeline_description())
 ```
 <!-- output -->
 ```
@@ -211,7 +215,7 @@ We can also ask to see only the part of the output that was created by the last 
     pipe
     .use(ToDatetime(), cols="C")
     .use(EncodeDatetime(), cols=s.any_date())
-).sample(select_created_by_last_step=True)
+).sample(last_step_only=True)
 
 ```
 <!-- output -->
@@ -431,7 +435,7 @@ Sample of transformed data:
 We can see a summary of the hyperparameter grid:
 
 ```python
-print(p.param_grid_description)
+print(p.get_param_grid_description())
 ```
 <!-- output -->
 ```
@@ -449,7 +453,7 @@ print(p.param_grid_description)
 (and of the steps)
 
 ```python
-print(p.pipeline_description)
+print(p.get_pipeline_description())
 ```
 <!-- output -->
 ```
@@ -472,7 +476,7 @@ And we can obtain a scikit-learn `GridSearchCV` that we can use to tune hyperpar
 This is not yet in the prototybe but we should also have methods (or a parameter) to get a randomised or successive halving object instead.
 
 ```python
-p.grid_search
+p.get_grid_search()
 ```
 <!-- output -->
 ```
@@ -503,7 +507,7 @@ p = pipe.chain(
     s.all().ridge(alpha=choose(1.0, 10.0).name("α")),
 )
 
-print(p.param_grid_description)
+print(p.get_param_grid_description())
 ```
 <!-- output -->
 ```
@@ -532,7 +536,7 @@ p = (
     .ridge(alpha=choose(1.0, 10.0).name("α"))
 )
 
-print(p.param_grid_description)
+print(p.get_param_grid_description())
 ```
 <!-- output -->
 ```
@@ -589,7 +593,7 @@ Sample of transformed data:
 ```
 
 ```python
-print(p.pipeline_description)
+print(p.get_pipeline_description())
 ```
 <!-- output -->
 ```
@@ -609,7 +613,7 @@ bagging_regressor:
 ```
 
 ```python
-print(p.param_grid_description)
+print(p.get_param_grid_description())
 ```
 <!-- output -->
 ```
@@ -678,7 +682,7 @@ Sample of transformed data:
 ```
 
 ```python
-print(p.pipeline_description)
+print(p.get_pipeline_description())
 ```
 <!-- output -->
 ```
@@ -704,7 +708,7 @@ regressor:
 ```
 
 ```python
-print(p.param_grid_description)
+print(p.get_param_grid_description())
 ```
 <!-- output -->
 ```
@@ -752,7 +756,7 @@ p = pipe.chain(
     ).name("regressor"),
 )
 
-print(p.param_grid_description)
+print(p.get_param_grid_description())
 ```
 <!-- output -->
 ```
@@ -797,7 +801,7 @@ p = (
         LogisticRegression(C=choose(0.1, 1.0).name("C")),
     )
 )
-print(p.param_grid_description)
+print(p.get_param_grid_description())
 ```
 <!-- output -->
 ```

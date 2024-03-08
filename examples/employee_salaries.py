@@ -24,7 +24,7 @@ pipe.get_skrubview_report()
 # +
 from sklearn.model_selection import cross_val_score
 
-cross_val_score(pipe.pipeline, employees, salaries)
+cross_val_score(pipe.get_pipeline(), employees, salaries)
 # -
 
 # # gridsearch
@@ -49,10 +49,10 @@ pipe = (
     )
     .use(HistGradientBoostingRegressor())
 )
-print(pipe.param_grid_description)
+print(pipe.get_param_grid_description())
 # -
 
-gs = pipe.grid_search.fit(employees, salaries)
+gs = pipe.get_grid_search().fit(employees, salaries)
 gs.best_params_
 
 # +
