@@ -13,6 +13,10 @@ y = df["count"]
 y /= y.max()
 X = df.drop("count", axis="columns")
 X["rowid"] = X.index.values
+# -
+
+# Before any transformations
+# --------------------------
 
 # +
 from skrub import selectors as s
@@ -55,6 +59,9 @@ pipe.chain((~s.categorical()).drop()).get_skrubview_report(n=float("inf"))
 
 # Ok enough procrastinating, let's add some steps to the pipeline.
 
+# Spline transformer
+# ------------------
+
 # +
 from sklearn.preprocessing import SplineTransformer
 import numpy as np
@@ -96,11 +103,27 @@ pipe.get_skrubview_report(order_by="rowid")
 pipe.get_skrubview_report(order_by="rowid", sampling_method="head")
 # -
 
+# Polynomial features
+# -------------------
+
 # We make polynomial interactions between the hour spline features and the
-# column that tells us if it's a working day. Here we rely on the column names
-# chosen by the one-hot and spline transformers to grab the columns we want. If
-# we wanted something more robust we could use the `.rename_columns()` method
-# of the steps to insert tags on which we would rely, eg
+# column that tells us if it's a working day.
+
+# +
+pipe = pipe.chain(
+    (s.glob("hour_sp_*") | s.cols("workingday_True")).polynomial_features(
+        degree=2, interaction_only=True, include_bias=False
+    ),
+    # get rid of the hour spline * hour spline interactions
+    s.glob("hour_sp_* hour_sp_*").drop(),
+)
+pipe.get_skrubview_report(order_by="rowid", sampling_method="head")
+# -
+
+# __Note:__ Here we rely on the column names chosen by the one-hot and spline
+# transformers to grab the columns we want. If we wanted something more robust
+# we could use the `.rename_columns()` method of the steps to insert tags on
+# which we would rely, eg
 #
 # ```
 # pipe.chain(
@@ -116,16 +139,8 @@ pipe.get_skrubview_report(order_by="rowid", sampling_method="head")
 # pipe.chain(s.glob('<hour spline>*').some_estimator())
 # ```
 
-# +
-pipe = pipe.chain(
-    (s.glob("hour_sp_*") | s.cols("workingday_True")).polynomial_features(
-        degree=2, interaction_only=True, include_bias=False
-    ),
-    # get rid of the hour spline * hour spline interactions
-    s.glob("hour_sp_* hour_sp_*").drop(),
-)
-pipe.get_skrubview_report(order_by="rowid", sampling_method="head")
-# -
+# Nystroem
+# --------
 
 # Let's not use the polynomial features after all
 
