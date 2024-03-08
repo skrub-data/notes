@@ -204,6 +204,28 @@ Note:
 
 `.sample()` and `.head()` don't catch the exception so it can be inspected.
 
+We can also ask to see only the part of the output that was created by the last step:
+
+```python
+(
+    pipe
+    .use(ToDatetime(), cols="C")
+    .use(EncodeDatetime(), cols=s.any_date())
+).sample(select_created_by_last_step=True)
+
+```
+<!-- output -->
+```
+   C_year  C_month  C_day  C_total_seconds
+2  2012.0      2.0   11.0     1328918400.0
+0  1998.0      2.0    1.0      886291200.0
+1  2027.0      3.0   10.0     1804636800.0
+3  1999.0      4.0   23.0      924825600.0
+4  1901.0      1.0    1.0    -2177452800.0
+```
+
+TODO: give that parameter a better name or add other methods instead, eg `.sample_last_step()`
+
 ## Option 2: with `Selector.to_datetime()`, `Selector.use()`
 
 We can also have the `use` method directly on the selectors, some methods for commonly used estimators.
