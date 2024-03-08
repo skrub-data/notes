@@ -4,6 +4,9 @@ breaks: false
 
 # A high-level interface for building a dataframe transformation pipeline
 
+See also:
+- Vision / step forward for skrub https://hackmd.io/@GaelVaroquaux/ryzYaLO6T
+
 The goal is to have a more high-level and interactive interface for building a scikit-learn pipeline.
 In particular it should offer:
 
@@ -105,20 +108,16 @@ Sample of transformed data:
 By default the preview is a random sample, we can also see the first few rows:
 
 ```python
-p.head()
+p.sample(sampling_method="head")
 ```
 <!-- output -->
 ```
-Traceback (most recent call last):
-  File "/home/jerome/scripts/run_markdown.py", line 75, in parse_block
-    val = _exec(code, self.namespace)
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/jerome/scripts/run_markdown.py", line 119, in _exec
-    return eval(
-           ^^^^^
-  File "<cell>", line 1, in <module>
-AttributeError: 'Pipe' object has no attribute 'head'
-
+   A  C_year  C_month  C_day  C_total_seconds    D    E  B_one  B_two
+0  1  1998.0      2.0    1.0      886291200.0  0.5  5.2    1.0    0.0
+1  2  2027.0      3.0   10.0     1804636800.0  1.5  6.2    1.0    0.0
+2  3  2012.0      2.0   11.0     1328918400.0  2.5  7.2    0.0    1.0
+3  4  1999.0      4.0   23.0      924825600.0  3.5  8.2    0.0    1.0
+4  5  1901.0      1.0    1.0    -2177452800.0  4.5  9.2    0.0    1.0
 ```
 
 
@@ -206,7 +205,7 @@ Note:
     You can remove steps from the pipeline with `.pop()`.
 ```
 
-`.sample()` and `.head()` don't catch the exception so it can be inspected.
+`.sample()` doesn't catch the exception so it can be inspected.
 
 We can also ask to see only the part of the output that was created by the last step:
 
