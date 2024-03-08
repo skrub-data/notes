@@ -19,6 +19,7 @@ here is some toy data:
 
 ```python
 import pandas as pd
+
 df = pd.DataFrame(
     {
         "A": list(range(1, 6)),
@@ -81,8 +82,7 @@ from sklearn.linear_model import Ridge
 from skrub._to_numeric import ToNumeric
 
 (
-    p := pipe
-    .use(ToDatetime(), cols="C")
+    p := pipe.use(ToDatetime(), cols="C")
     .use(EncodeDatetime(), cols=s.any_date(), name="encode-dt")
     .use(OneHotEncoder(sparse_output=False), cols=s.string())
     .use(Ridge())
@@ -180,12 +180,7 @@ If the transformation fails we see at which step it failed and the input data fo
 ```python
 from sklearn.preprocessing import StandardScaler
 
-(
-    pipe
-    .use(ToDatetime())
-    .use(StandardScaler())
-    .use(Ridge())
-)
+(pipe.use(ToDatetime()).use(StandardScaler()).use(Ridge()))
 ```
 <!-- output -->
 ```
@@ -271,11 +266,14 @@ That returns an object that is used to configure the next step
 
 ```python
 (
-    pipe
-    .cols("C").to_datetime()
-    .cols(s.any_date()).encode_datetime()
-    .cols(s.string()).one_hot_encoder(sparse_output=False)
-    .cols(s.all()).ridge()
+    pipe.cols("C")
+    .to_datetime()
+    .cols(s.any_date())
+    .encode_datetime()
+    .cols(s.string())
+    .one_hot_encoder(sparse_output=False)
+    .cols(s.all())
+    .ridge()
 )
 ```
 <!-- output -->
@@ -303,11 +301,14 @@ We cannot pass an estimator directly, but the result of `cols` has a `use()` (or
 
 ```python
 (
-    pipe
-    .cols("C").use(ToDatetime())
-    .cols(s.any_date()).use(EncodeDatetime())
-    .cols(s.string()).use(OneHotEncoder(sparse_output=False))
-    .cols(s.all()).use(Ridge())
+    pipe.cols("C")
+    .use(ToDatetime())
+    .cols(s.any_date())
+    .use(EncodeDatetime())
+    .cols(s.string())
+    .use(OneHotEncoder(sparse_output=False))
+    .cols(s.all())
+    .use(Ridge())
 )
 ```
 <!-- output -->
@@ -382,10 +383,11 @@ Otherwise we always have the usual `step_name__param_name` grid-search name.
 from skrub._pipe import choose
 
 (
-    p := pipe
-    .use(ToDatetime(), cols="C")
-    .use(EncodeDatetime(resolution=choose("month", "day").name("time res")),
-         cols=s.any_date())
+    p := pipe.use(ToDatetime(), cols="C")
+    .use(
+        EncodeDatetime(resolution=choose("month", "day").name("time res")),
+        cols=s.any_date(),
+    )
     .use(OneHotEncoder(sparse_output=False), cols=s.string())
     .use(Ridge(alpha=choose(1.0, 10.0).name("α")))
 )
@@ -413,8 +415,8 @@ print(p.param_grid_description)
 ```
 - 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
   'time res':
-      - month
-      - day
+      - 'month'
+      - 'day'
   'ridge': Ridge(alpha=<α>)
   'α':
       - 1.0
@@ -485,8 +487,8 @@ print(p.param_grid_description)
 ```
 - 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
   'time res':
-      - month
-      - day
+      - 'month'
+      - 'day'
   'ridge': Ridge(alpha=<α>)
   'α':
       - 1.0
@@ -498,11 +500,14 @@ print(p.param_grid_description)
 
 ```python
 p = (
-    pipe
-    .cols("C").to_datetime()
-    .cols(s.any_date()).encode_datetime(resolution=choose("month", "day").name("time res"))
-    .cols(s.string()).one_hot_encoder(sparse_output=False)
-    .cols(s.all()).ridge(alpha=choose(1.0, 10.0).name("α"))
+    pipe.cols("C")
+    .to_datetime()
+    .cols(s.any_date())
+    .encode_datetime(resolution=choose("month", "day").name("time res"))
+    .cols(s.string())
+    .one_hot_encoder(sparse_output=False)
+    .cols(s.all())
+    .ridge(alpha=choose(1.0, 10.0).name("α"))
 )
 
 print(p.param_grid_description)
@@ -511,8 +516,8 @@ print(p.param_grid_description)
 ```
 - 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
   'time res':
-      - month
-      - day
+      - 'month'
+      - 'day'
   'ridge': Ridge(alpha=<α>)
   'α':
       - 1.0
@@ -538,10 +543,11 @@ regressor = BaggingRegressor(
     ).name("bagged")
 )
 (
-    p := pipe
-    .use(ToDatetime(), cols="C")
-    .use(EncodeDatetime(resolution=choose("month", "day").name("time res")),
-         cols=s.any_date())
+    p := pipe.use(ToDatetime(), cols="C")
+    .use(
+        EncodeDatetime(resolution=choose("month", "day").name("time res")),
+        cols=s.any_date(),
+    )
     .use(OneHotEncoder(sparse_output=False), cols=s.string())
     .use(regressor)
 )
@@ -587,8 +593,8 @@ print(p.param_grid_description)
 ```
 - 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
   'time res':
-      - month
-      - day
+      - 'month'
+      - 'day'
   'bagging_regressor': BaggingRegressor(estimator=<bagged>)
   'bagged': Ridge(alpha=<α>)
   'α':
@@ -596,8 +602,8 @@ print(p.param_grid_description)
       - 10.0
 - 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
   'time res':
-      - month
-      - day
+      - 'month'
+      - 'day'
   'bagging_regressor': BaggingRegressor(estimator=<bagged>)
   'bagged': LogisticRegression(C=<C>)
   'C':
@@ -618,19 +624,21 @@ from sklearn.preprocessing import OrdinalEncoder
 
 (
     p := pipe.use(ToDatetime(), cols="C")
-    .use(EncodeDatetime(resolution=choose("month", "day").name("time res")),
-         cols=s.any_date())
+    .use(
+        EncodeDatetime(resolution=choose("month", "day").name("time res")),
+        cols=s.any_date(),
+    )
     .choose(
         OneHotEncoder(sparse_output=False),
         OrdinalEncoder(),
         cols=s.string(),
         name="cat-encoder",
-     )
+    )
     .choose(
         Ridge(alpha=choose(1.0, 10.0).name("α")),
         LogisticRegression(C=choose(0.1, 1.0).name("C")),
         name="regressor",
-     )
+    )
 )
 ```
 <!-- output -->
@@ -680,8 +688,8 @@ print(p.param_grid_description)
 ```
 - 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
   'time res':
-      - month
-      - day
+      - 'month'
+      - 'day'
   'cat-encoder':
       - <OneHotEncoder(sparse_output=False).transform(X[string()])>
       - <OrdinalEncoder().transform(X[string()])>
@@ -691,8 +699,8 @@ print(p.param_grid_description)
       - 10.0
 - 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
   'time res':
-      - month
-      - day
+      - 'month'
+      - 'day'
   'cat-encoder':
       - <OneHotEncoder(sparse_output=False).transform(X[string()])>
       - <OrdinalEncoder().transform(X[string()])>
@@ -713,10 +721,9 @@ print(p.param_grid_description)
 p = pipe.chain(
     s.cols("C").to_datetime(),
     s.any_date().encode_datetime(resolution=choose("month", "day").name("time res")),
-    s.string().choose(
-        OneHotEncoder(sparse_output=False),
-        OrdinalEncoder()
-    ).name("encoder"),
+    s.string()
+    .choose(OneHotEncoder(sparse_output=False), OrdinalEncoder())
+    .name("encoder"),
     choose(
         Ridge(alpha=choose(1.0, 10.0).name("α")),
         LogisticRegression(C=choose(0.1, 1.0).name("C")),
@@ -729,8 +736,8 @@ print(p.param_grid_description)
 ```
 - 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
   'time res':
-      - month
-      - day
+      - 'month'
+      - 'day'
   'encoder':
       - <OneHotEncoder(sparse_output=False).transform(X[string()])>
       - <OrdinalEncoder().transform(X[string()])>
@@ -740,8 +747,8 @@ print(p.param_grid_description)
       - 10.0
 - 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
   'time res':
-      - month
-      - day
+      - 'month'
+      - 'day'
   'encoder':
       - <OneHotEncoder(sparse_output=False).transform(X[string()])>
       - <OrdinalEncoder().transform(X[string()])>
@@ -756,14 +763,14 @@ print(p.param_grid_description)
 
 ```python
 p = (
-    pipe
-    .cols("C").to_datetime()
-    .cols(s.any_date()).encode_datetime(resolution=choose("month", "day").name("time res"))
-    .cols(s.string()).choose(
-        OneHotEncoder(sparse_output=False),
-        OrdinalEncoder()
-    )
-    .cols(s.all()).choose(
+    pipe.cols("C")
+    .to_datetime()
+    .cols(s.any_date())
+    .encode_datetime(resolution=choose("month", "day").name("time res"))
+    .cols(s.string())
+    .choose(OneHotEncoder(sparse_output=False), OrdinalEncoder())
+    .cols(s.all())
+    .choose(
         Ridge(alpha=choose(1.0, 10.0).name("α")),
         LogisticRegression(C=choose(0.1, 1.0).name("C")),
     )
@@ -774,8 +781,8 @@ print(p.param_grid_description)
 ```
 - 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
   'time res':
-      - month
-      - day
+      - 'month'
+      - 'day'
   'one_hot_encoder':
       - <OneHotEncoder(sparse_output=False).transform(X[string()])>
       - <OrdinalEncoder().transform(X[string()])>
@@ -785,8 +792,8 @@ print(p.param_grid_description)
       - 10.0
 - 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
   'time res':
-      - month
-      - day
+      - 'month'
+      - 'day'
   'one_hot_encoder':
       - <OneHotEncoder(sparse_output=False).transform(X[string()])>
       - <OrdinalEncoder().transform(X[string()])>
@@ -800,3 +807,90 @@ print(p.param_grid_description)
 </details>
 
 
+# Keeping the original columns and renaming output columns
+
+Sometimes we want to transform a column but still keep the original one in the output, maybe to transform it in a different way.
+We can do it with `keep_original`:
+
+```python
+pipe.use(
+    OneHotEncoder(sparse_output=False), cols="B", keep_original=False
+)  # the default
+```
+<!-- output -->
+```
+<Pipe: 1 transformations>
+Steps:
+0: one_hot_encoder
+Sample of transformed data:
+   A           C    D    E  B_one  B_two
+0  3  11/02/2012  2.5  7.2    0.0    1.0
+1  1  01/02/1998  0.5  5.2    1.0    0.0
+2  2  10/03/2027  1.5  6.2    1.0    0.0
+3  4  23/04/1999  3.5  8.2    0.0    1.0
+4  5  01/01/1901  4.5  9.2    0.0    1.0
+```
+
+```python
+pipe.use(OneHotEncoder(sparse_output=False), cols="B", keep_original=True)
+```
+<!-- output -->
+```
+<Pipe: 1 transformations>
+Steps:
+0: one_hot_encoder
+Sample of transformed data:
+   A    B           C    D    E  B_one  B_two
+0  3  two  11/02/2012  2.5  7.2    0.0    1.0
+1  1  one  01/02/1998  0.5  5.2    1.0    0.0
+2  2  one  10/03/2027  1.5  6.2    1.0    0.0
+3  4  two  23/04/1999  3.5  8.2    0.0    1.0
+4  5  two  01/01/1901  4.5  9.2    0.0    1.0
+```
+
+We can also rename the output columns.
+For example this can be a way to insert a tag by which we can select them later.
+
+```python
+pipe.chain(
+    s.cols("B").one_hot_encoder(sparse_output=False).rename_columns("<ohe-B>{}"),
+    s.cols("A").one_hot_encoder(sparse_output=False).rename_columns("<ohe-A>{}"),
+    s.glob("<ohe-[BA]>*").polynomial_features(
+           degree=2, interaction_only=True, include_bias=False),
+).sample().iloc[0]
+```
+<!-- output -->
+```
+C                            11/02/2012
+D                                   2.5
+E                                   7.2
+<ohe-B>B_one                        0.0
+<ohe-B>B_two                        1.0
+<ohe-A>A_1.0                        0.0
+<ohe-A>A_2.0                        0.0
+<ohe-A>A_3.0                        1.0
+<ohe-A>A_4.0                        0.0
+<ohe-A>A_5.0                        0.0
+<ohe-B>B_one <ohe-B>B_two           0.0
+<ohe-B>B_one <ohe-A>A_1.0           0.0
+<ohe-B>B_one <ohe-A>A_2.0           0.0
+<ohe-B>B_one <ohe-A>A_3.0           0.0
+<ohe-B>B_one <ohe-A>A_4.0           0.0
+<ohe-B>B_one <ohe-A>A_5.0           0.0
+<ohe-B>B_two <ohe-A>A_1.0           0.0
+<ohe-B>B_two <ohe-A>A_2.0           0.0
+<ohe-B>B_two <ohe-A>A_3.0           1.0
+<ohe-B>B_two <ohe-A>A_4.0           0.0
+<ohe-B>B_two <ohe-A>A_5.0           0.0
+<ohe-A>A_1.0 <ohe-A>A_2.0           0.0
+<ohe-A>A_1.0 <ohe-A>A_3.0           0.0
+<ohe-A>A_1.0 <ohe-A>A_4.0           0.0
+<ohe-A>A_1.0 <ohe-A>A_5.0           0.0
+<ohe-A>A_2.0 <ohe-A>A_3.0           0.0
+<ohe-A>A_2.0 <ohe-A>A_4.0           0.0
+<ohe-A>A_2.0 <ohe-A>A_5.0           0.0
+<ohe-A>A_3.0 <ohe-A>A_4.0           0.0
+<ohe-A>A_3.0 <ohe-A>A_5.0           0.0
+<ohe-A>A_4.0 <ohe-A>A_5.0           0.0
+Name: 0, dtype: object
+```
