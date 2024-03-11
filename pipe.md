@@ -84,25 +84,14 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.linear_model import Ridge
 from skrub._to_numeric import ToNumeric
 
-(
-    p := pipe.use(ToDatetime(), cols="C")
-    .use(EncodeDatetime(), cols=s.any_date(), name="encode-dt")
-    .use(OneHotEncoder(sparse_output=False), cols=s.string())
-    .use(Ridge())
-)
+p = pipe.use(ToDatetime(), cols="C")
+p = p.use(EncodeDatetime(), cols=s.any_date(), name="encode-dt")
+p = p.use(OneHotEncoder(sparse_output=False), cols=s.string())
+p = p.use(Ridge())
+
 ```
 <!-- output -->
 ```
-<Pipe: 3 transformations + Ridge>
-Steps:
-0: to_datetime, 1: encode-dt, 2: one_hot_encoder, 3: ridge
-Sample of transformed data:
-   A  C_year  C_month  C_day  C_total_seconds    D    E  B_one  B_two
-0  3  2012.0      2.0   11.0     1328918400.0  2.5  7.2    0.0    1.0
-1  1  1998.0      2.0    1.0      886291200.0  0.5  5.2    1.0    0.0
-2  2  2027.0      3.0   10.0     1804636800.0  1.5  6.2    1.0    0.0
-3  4  1999.0      4.0   23.0      924825600.0  3.5  8.2    0.0    1.0
-4  5  1901.0      1.0    1.0    -2177452800.0  4.5  9.2    0.0    1.0
 ```
 
 By default the preview is a random sample, we can also see the first few rows:
@@ -407,28 +396,17 @@ Otherwise we always have the usual `step_name__param_name` grid-search name.
 ```python
 from skrub._pipe import choose
 
-(
-    p := pipe.use(ToDatetime(), cols="C")
-    .use(
+p = pipe.use(ToDatetime(), cols="C")
+p = p.use(
         EncodeDatetime(resolution=choose("month", "day").name("time res")),
         cols=s.any_date(),
     )
-    .use(OneHotEncoder(sparse_output=False), cols=s.string())
-    .use(Ridge(alpha=choose(1.0, 10.0).name("α")))
-)
+p = p.use(OneHotEncoder(sparse_output=False), cols=s.string())
+p = p.use(Ridge(alpha=choose(1.0, 10.0).name("α")))
+
 ```
 <!-- output -->
 ```
-<Pipe: 3 transformations + Ridge>
-Steps:
-0: to_datetime, 1: encode_datetime, 2: one_hot_encoder, 3: ridge
-Sample of transformed data:
-   A  C_year  C_month  C_total_seconds    D    E  B_one  B_two
-0  3  2012.0      2.0     1328918400.0  2.5  7.2    0.0    1.0
-1  1  1998.0      2.0      886291200.0  0.5  5.2    1.0    0.0
-2  2  2027.0      3.0     1804636800.0  1.5  6.2    1.0    0.0
-3  4  1999.0      4.0      924825600.0  3.5  8.2    0.0    1.0
-4  5  1901.0      1.0    -2177452800.0  4.5  9.2    0.0    1.0
 ```
 
 We can see a summary of the hyperparameter grid:
@@ -567,28 +545,17 @@ regressor = BaggingRegressor(
         LogisticRegression(C=choose(0.1, 1.0).name("C")),
     ).name("bagged")
 )
-(
-    p := pipe.use(ToDatetime(), cols="C")
-    .use(
+p = pipe.use(ToDatetime(), cols="C")
+p = p.use(
         EncodeDatetime(resolution=choose("month", "day").name("time res")),
         cols=s.any_date(),
     )
-    .use(OneHotEncoder(sparse_output=False), cols=s.string())
-    .use(regressor)
-)
+p = p.use(OneHotEncoder(sparse_output=False), cols=s.string())
+p = p.use(regressor)
+
 ```
 <!-- output -->
 ```
-<Pipe: 3 transformations + BaggingRegressor>
-Steps:
-0: to_datetime, 1: encode_datetime, 2: one_hot_encoder, 3: bagging_regressor
-Sample of transformed data:
-   A  C_year  C_month  C_total_seconds    D    E  B_one  B_two
-0  3  2012.0      2.0     1328918400.0  2.5  7.2    0.0    1.0
-1  1  1998.0      2.0      886291200.0  0.5  5.2    1.0    0.0
-2  2  2027.0      3.0     1804636800.0  1.5  6.2    1.0    0.0
-3  4  1999.0      4.0      924825600.0  3.5  8.2    0.0    1.0
-4  5  1901.0      1.0    -2177452800.0  4.5  9.2    0.0    1.0
 ```
 
 ```python
@@ -647,37 +614,26 @@ For convenience, to remove one nested call, the `Pipe` can also have a `choose` 
 ```python
 from sklearn.preprocessing import OrdinalEncoder
 
-(
-    p := pipe.use(ToDatetime(), cols="C")
-    .use(
+p  = pipe.use(ToDatetime(), cols="C")
+p  = p.use(
         EncodeDatetime(resolution=choose("month", "day").name("time res")),
         cols=s.any_date(),
     )
-    .choose(
+p = p.choose(
         OneHotEncoder(sparse_output=False),
         OrdinalEncoder(),
         cols=s.string(),
         name="cat-encoder",
     )
-    .choose(
+p = p.choose(
         Ridge(alpha=choose(1.0, 10.0).name("α")),
         LogisticRegression(C=choose(0.1, 1.0).name("C")),
         name="regressor",
     )
-)
+
 ```
 <!-- output -->
 ```
-<Pipe: 3 transformations + Ridge>
-Steps:
-0: to_datetime, 1: encode_datetime, 2: cat-encoder, 3: regressor
-Sample of transformed data:
-   A  C_year  C_month  C_total_seconds    D    E  B_one  B_two
-0  3  2012.0      2.0     1328918400.0  2.5  7.2    0.0    1.0
-1  1  1998.0      2.0      886291200.0  0.5  5.2    1.0    0.0
-2  2  2027.0      3.0     1804636800.0  1.5  6.2    1.0    0.0
-3  4  1999.0      4.0      924825600.0  3.5  8.2    0.0    1.0
-4  5  1901.0      1.0    -2177452800.0  4.5  9.2    0.0    1.0
 ```
 
 ```python
