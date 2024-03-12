@@ -70,7 +70,9 @@ Sample of transformed data:
 4  5  two  01/01/1901  4.5  9.2
 ```
 
-Roughly 3 APIs for adding steps have been proposed; other suggestions welcome.
+Roughly 2 APIs for adding steps are being considered; other suggestions welcome.
+
+ATM it seems Option 1 is the main candidate and option 2 may or may not be added as a more "advanced" interface in the future.
 
 ## Option 1: with `Pipe.use()`
 
@@ -92,7 +94,7 @@ p
 ```
 <!-- output -->
 ```
-<Pipe: 3 transformations + Ridge>
+<Pipe: 3 transformations + predictor>
 Steps:
 0: to_datetime, 1: encode-dt, 2: one_hot_encoder, 3: ridge
 Sample of transformed data:
@@ -145,13 +147,13 @@ p.get_pipeline()
 ```
 <!-- output -->
 ```
-Pipeline(steps=[('to_datetime',
-                 OnEachColumn(cols=['C'], transformer=ToDatetime())),
-                ('encode-dt',
-                 OnEachColumn(cols=any_date(), transformer=EncodeDatetime())),
-                ('one_hot_encoder',
-                 OnColumnSelection(cols=string(), transformer=OneHotEncoder(sparse_output=False))),
-                ('ridge', Ridge())])
+NamedParamPipeline(steps=[('to_datetime',
+                           OnEachColumn(cols=['C'], transformer=ToDatetime())),
+                          ('encode-dt',
+                           OnEachColumn(cols=any_date(), transformer=EncodeDatetime())),
+                          ('one_hot_encoder',
+                           OnColumnSelection(cols=string(), transformer=OneHotEncoder(sparse_output=False))),
+                          ('ridge', Ridge())])
 ```
 
 This is a regular scikit-learn `Pipeline`.
@@ -186,7 +188,7 @@ from sklearn.preprocessing import StandardScaler
 ```
 <!-- output -->
 ```
-<Pipe: 2 transformations + Ridge>
+<Pipe: 2 transformations + predictor>
 Steps:
 0: to_datetime, 1: standard_scaler, 2: ridge
 Transformation failed at step 'standard_scaler'.
@@ -209,11 +211,9 @@ Note:
 We can also ask to see only the part of the output that was created by the last step:
 
 ```python
-(
-    pipe
-    .use(ToDatetime(), cols="C")
-    .use(EncodeDatetime(), cols=s.any_date())
-).sample(last_step_only=True)
+(pipe.use(ToDatetime(), cols="C").use(EncodeDatetime(), cols=s.any_date())).sample(
+    last_step_only=True
+)
 
 ```
 <!-- output -->
@@ -244,7 +244,7 @@ pipe.chain(
 ```
 <!-- output -->
 ```
-<Pipe: 3 transformations + Ridge>
+<Pipe: 3 transformations + predictor>
 Steps:
 0: to_datetime, 1: encode-dt, 2: one_hot_encoder, 3: ridge
 Sample of transformed data:
@@ -271,7 +271,7 @@ pipe.chain(
 ```
 <!-- output -->
 ```
-<Pipe: 3 transformations + Ridge>
+<Pipe: 3 transformations + predictor>
 Steps:
 0: to_datetime, 1: encode-dt, 2: one_hot_encoder, 3: ridge
 Sample of transformed data:
@@ -283,12 +283,16 @@ Sample of transformed data:
 4  5  1901.0      1.0    1.0    -2177452800.0  4.5  9.2    0.0    1.0
 ```
 
-## Option3: with `Pipe.cols().to_datetime()`, `Pipe.cols().use()`
+## Discarded options
+
+<details>
+
+### Option3: with `Pipe.cols().to_datetime()`, `Pipe.cols().use()`
 
 The third option adds a method `.cols` (or maybe `.on_cols`) to the pipeline to which we pass the selector.
 That returns an object that is used to configure the next step
 
-```python
+```
 (
     pipe.cols("C")
     .to_datetime()
@@ -323,7 +327,7 @@ We could also say that there is a `.name()` method on the `Pipe` itself that imp
 
 We cannot pass an estimator directly, but the result of `cols` has a `use()` (or `apply()`, or ...) method:
 
-```python
+```
 (
     pipe.cols("C")
     .use(ToDatetime())
@@ -351,7 +355,7 @@ Sample of transformed data:
 
 As the `.cols()` looks like we are indexing the data it may be a bit surprising if someone expects the result of the transformation on just those columns to be returned:
 
-```python
+```
 p = pipe.cols(["A", "B"]).one_hot_encoder(sparse_output=False)
 p
 ```
@@ -371,7 +375,7 @@ Sample of transformed data:
 
 A user could be surprised to see "C", "D", "E", and "F" in the output above.
 
-## Discarded options
+### Option 4
 
 Having the estimator methods directly on the `Pipe` rather than on `pipe.cols`
 
@@ -387,6 +391,9 @@ Having the estimator methods directly on the `Pipe` rather than on `pipe.cols`
 
 Note that this one would _require_ having methods on `Pipe` such as `on_cols` that implicitly apply to the last step.
 
+</details>
+
+
 # Choosing hyperparameters
 
 It is important to be able to tune hyperparameters, and thus to provide a parameter grid to scikit-learn's `GridSearchCV`, `RandomizedSearchCV` or successive halving.
@@ -401,23 +408,26 @@ The `Choice` object returned by `choose` has a `.name()` method, which we can us
 That could be used when displaying cross-validation results.
 Otherwise we always have the usual `step_name__param_name` grid-search name.
 
+
 ## Example with `Pipe.use`
 
 ```python
 from skrub._pipe import choose
 
-p = pipe.use(ToDatetime(), cols="C")
-p = p.use(
+p = (
+    pipe.use(ToDatetime(), cols="C")
+    .use(
         EncodeDatetime(resolution=choose("month", "day").name("time res")),
         cols=s.any_date(),
     )
-p = p.use(OneHotEncoder(sparse_output=False), cols=s.string())
-p = p.use(Ridge(alpha=choose(1.0, 10.0).name("α")))
+    .use(OneHotEncoder(sparse_output=False), cols=s.string())
+    .use(Ridge(alpha=choose(1.0, 10.0).name("α")))
+)
 p
 ```
 <!-- output -->
 ```
-<Pipe: 3 transformations + Ridge>
+<Pipe: 3 transformations + predictor>
 Steps:
 0: to_datetime, 1: encode_datetime, 2: one_hot_encoder, 3: ridge
 Sample of transformed data:
@@ -436,11 +446,9 @@ print(p.get_param_grid_description())
 ```
 <!-- output -->
 ```
-- 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
-  'time res':
+- 'time res':
       - 'month'
       - 'day'
-  'ridge': Ridge(alpha=<α>)
   'α':
       - 1.0
       - 10.0
@@ -477,16 +485,14 @@ p.get_grid_search()
 ```
 <!-- output -->
 ```
-GridSearchCV(estimator=Pipeline(steps=[('to_datetime',
-                                        OnEachColumn(cols=['C'], transformer=ToDatetime())),
-                                       ('encode_datetime',
-                                        OnEachColumn(cols=any_date(), transformer=EncodeDatetime(resolution='month'))),
-                                       ('one_hot_encoder',
-                                        OnColumnSelection(cols=string(), transformer=OneHotEncoder(sparse_output=False))),
-                                       ('ridge', Ridge())]),
-             param_grid=[{'encode_datetime': choose(<EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>),
-                          'encode_datetime__transformer__resolution': choose('month', 'day').name('time res'),
-                          'ridge': choose(Ridge(alpha=<α>)),
+GridSearchCV(estimator=NamedParamPipeline(steps=[('to_datetime',
+                                                  OnEachColumn(cols=['C'], transformer=ToDatetime())),
+                                                 ('encode_datetime',
+                                                  OnEachColumn(cols=any_date(), transformer=EncodeDatetime(resolution='month'))),
+                                                 ('one_hot_encoder',
+                                                  OnColumnSelection(cols=string(), transformer=OneHotEncoder(sparse_output=False))),
+                                                 ('ridge', Ridge())]),
+             param_grid=[{'encode_datetime__transformer__resolution': choose('month', 'day').name('time res'),
                           'ridge__alpha': choose(1.0, 10.0).name('α')}])
 ```
 
@@ -508,40 +514,9 @@ print(p.get_param_grid_description())
 ```
 <!-- output -->
 ```
-- 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
-  'time res':
+- 'time res':
       - 'month'
       - 'day'
-  'ridge': Ridge(alpha=<α>)
-  'α':
-      - 1.0
-      - 10.0
-
-```
-
-## `Pipe.cols` (option 3)
-
-```python
-p = (
-    pipe.cols("C")
-    .to_datetime()
-    .cols(s.any_date())
-    .encode_datetime(resolution=choose("month", "day").name("time res"))
-    .cols(s.string())
-    .one_hot_encoder(sparse_output=False)
-    .cols(s.all())
-    .ridge(alpha=choose(1.0, 10.0).name("α"))
-)
-
-print(p.get_param_grid_description())
-```
-<!-- output -->
-```
-- 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
-  'time res':
-      - 'month'
-      - 'day'
-  'ridge': Ridge(alpha=<α>)
   'α':
       - 1.0
       - 10.0
@@ -557,26 +532,28 @@ Using `choose` for sub-estimators or their hyperparameters works as expected.
 
 ```python
 from sklearn.ensemble import BaggingRegressor
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, RidgeClassifier
 
 regressor = BaggingRegressor(
     choose(
-        Ridge(alpha=choose(1.0, 10.0).name("α")),
+        RidgeClassifier(alpha=choose(1.0, 10.0).name("α")),
         LogisticRegression(C=choose(0.1, 1.0).name("C")),
     ).name("bagged")
 )
-p = pipe.use(ToDatetime(), cols="C")
-p = p.use(
+p = (
+    pipe.use(ToDatetime(), cols="C")
+    .use(
         EncodeDatetime(resolution=choose("month", "day").name("time res")),
         cols=s.any_date(),
     )
-p = p.use(OneHotEncoder(sparse_output=False), cols=s.string())
-p = p.use(regressor)
+    .use(OneHotEncoder(sparse_output=False), cols=s.string())
+    .use(regressor)
+)
 p
 ```
 <!-- output -->
 ```
-<Pipe: 3 transformations + BaggingRegressor>
+<Pipe: 3 transformations + predictor>
 Steps:
 0: to_datetime, 1: encode_datetime, 2: one_hot_encoder, 3: bagging_regressor
 Sample of transformed data:
@@ -604,7 +581,7 @@ one_hot_encoder:
     estimator: OneHotEncoder(sparse_output=False)
 bagging_regressor:
     cols: all()
-    estimator: BaggingRegressor(estimator=choose(Ridge(alpha=choose(1.0, 10.0).name('α')), LogisticRegression(C=choose(0.1, 1.0).name('C'))).name('bagged'))
+    estimator: BaggingRegressor(estimator=choose(RidgeClassifier(alpha=choose(1.0, 10.0).name('α')), LogisticRegression(C=choose(0.1, 1.0).name('C'))).name('bagged'))
 
 ```
 
@@ -613,20 +590,16 @@ print(p.get_param_grid_description())
 ```
 <!-- output -->
 ```
-- 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
-  'time res':
+- 'time res':
       - 'month'
       - 'day'
-  'bagging_regressor': BaggingRegressor(estimator=<bagged>)
-  'bagged': Ridge(alpha=<α>)
+  'bagged': RidgeClassifier(alpha=<α>)
   'α':
       - 1.0
       - 10.0
-- 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
-  'time res':
+- 'time res':
       - 'month'
       - 'day'
-  'bagging_regressor': BaggingRegressor(estimator=<bagged>)
   'bagged': LogisticRegression(C=<C>)
   'C':
       - 0.1
@@ -637,36 +610,39 @@ print(p.get_param_grid_description())
 # Choosing among several estimators
 
 We may also want to choose among several estimators, ie have a choice for the whole step.
-We can pass a `Choice` to `use`: `pipe.use(choose(Ridge(), LogisticRegression()))`.
-For convenience, to remove one nested call, the `Pipe` can also have a `choose` method:
-`pipe.choose(opt1, opt2)` is shorthand for `pipe.use(choose(opt1, opt2))`.
+We can pass a `Choice` to `use`: `pipe.use(choose(RidgeClassifier(), LogisticRegression()))`.
+
 
 ```python
 from sklearn.preprocessing import OrdinalEncoder
 
-p  = pipe.use(ToDatetime(), cols="C")
-p  = p.use(
-        EncodeDatetime(resolution=choose("month", "day").name("time res")),
-        cols=s.any_date(),
-    )
-p = p.choose(
+p = pipe.use(ToDatetime(), cols="C")
+p = p.use(
+    EncodeDatetime(resolution=choose("month", "day").name("time res")),
+    cols=s.any_date(),
+)
+p = p.use(
+    choose(
         OneHotEncoder(sparse_output=False),
         OrdinalEncoder(),
-        cols=s.string(),
-        name="cat-encoder",
-    )
-p = p.choose(
-        Ridge(alpha=choose(1.0, 10.0).name("α")),
+    ),
+    cols=s.string(),
+    name="cat-encoder",
+)
+p = p.use(
+    choose(
+        RidgeClassifier(alpha=choose(1.0, 10.0).name("α")),
         LogisticRegression(C=choose(0.1, 1.0).name("C")),
-        name="regressor",
-    )
+    ),
+    name="classifier",
+)
 p
 ```
 <!-- output -->
 ```
-<Pipe: 3 transformations + Ridge>
+<Pipe: 3 transformations + predictor>
 Steps:
-0: to_datetime, 1: encode_datetime, 2: cat-encoder, 3: regressor
+0: to_datetime, 1: encode_datetime, 2: cat-encoder, 3: classifier
 Sample of transformed data:
    A  C_year  C_month  C_total_seconds    D    E  B_one  B_two
 0  3  2012.0      2.0     1328918400.0  2.5  7.2    0.0    1.0
@@ -688,17 +664,15 @@ encode_datetime:
     cols: any_date()
     estimator: EncodeDatetime(resolution=choose('month', 'day').name('time res'))
 cat-encoder:
+    cols: string()
     choose:
-        - cols: string()
-          estimator: OneHotEncoder(sparse_output=False)
-        - cols: string()
-          estimator: OrdinalEncoder()
-regressor:
+        - OneHotEncoder(sparse_output=False)
+        - OrdinalEncoder()
+classifier:
+    cols: all()
     choose:
-        - cols: all()
-          estimator: Ridge(alpha=choose(1.0, 10.0).name('α'))
-        - cols: all()
-          estimator: LogisticRegression(C=choose(0.1, 1.0).name('C'))
+        - RidgeClassifier(alpha=choose(1.0, 10.0).name('α'))
+        - LogisticRegression(C=choose(0.1, 1.0).name('C'))
 
 ```
 
@@ -707,25 +681,23 @@ print(p.get_param_grid_description())
 ```
 <!-- output -->
 ```
-- 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
-  'time res':
+- 'time res':
       - 'month'
       - 'day'
   'cat-encoder':
       - <OneHotEncoder(sparse_output=False).transform(X[string()])>
       - <OrdinalEncoder().transform(X[string()])>
-  'regressor': Ridge(alpha=<α>)
+  'classifier': RidgeClassifier(alpha=<α>)
   'α':
       - 1.0
       - 10.0
-- 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
-  'time res':
+- 'time res':
       - 'month'
       - 'day'
   'cat-encoder':
       - <OneHotEncoder(sparse_output=False).transform(X[string()])>
       - <OrdinalEncoder().transform(X[string()])>
-  'regressor': LogisticRegression(C=<C>)
+  'classifier': LogisticRegression(C=<C>)
   'C':
       - 0.1
       - 1.0
@@ -743,82 +715,35 @@ p = pipe.chain(
     s.cols("C").to_datetime(),
     s.any_date().encode_datetime(resolution=choose("month", "day").name("time res")),
     s.string()
-    .choose(OneHotEncoder(sparse_output=False), OrdinalEncoder())
+    .use(choose(OneHotEncoder(sparse_output=False), OrdinalEncoder()))
     .name("encoder"),
     choose(
-        Ridge(alpha=choose(1.0, 10.0).name("α")),
+        RidgeClassifier(alpha=choose(1.0, 10.0).name("α")),
         LogisticRegression(C=choose(0.1, 1.0).name("C")),
-    ).name("regressor"),
+    ).name("classifier"),
 )
 
 print(p.get_param_grid_description())
 ```
 <!-- output -->
 ```
-- 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
-  'time res':
+- 'time res':
       - 'month'
       - 'day'
   'encoder':
       - <OneHotEncoder(sparse_output=False).transform(X[string()])>
       - <OrdinalEncoder().transform(X[string()])>
-  'regressor': Ridge(alpha=<α>)
+  'classifier': RidgeClassifier(alpha=<α>)
   'α':
       - 1.0
       - 10.0
-- 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
-  'time res':
+- 'time res':
       - 'month'
       - 'day'
   'encoder':
       - <OneHotEncoder(sparse_output=False).transform(X[string()])>
       - <OrdinalEncoder().transform(X[string()])>
-  'regressor': LogisticRegression(C=<C>)
-  'C':
-      - 0.1
-      - 1.0
-
-```
-
-## `Pipe.cols` (option 3)
-
-```python
-p = (
-    pipe.cols("C")
-    .to_datetime()
-    .cols(s.any_date())
-    .encode_datetime(resolution=choose("month", "day").name("time res"))
-    .cols(s.string())
-    .choose(OneHotEncoder(sparse_output=False), OrdinalEncoder())
-    .cols(s.all())
-    .choose(
-        Ridge(alpha=choose(1.0, 10.0).name("α")),
-        LogisticRegression(C=choose(0.1, 1.0).name("C")),
-    )
-)
-print(p.get_param_grid_description())
-```
-<!-- output -->
-```
-- 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
-  'time res':
-      - 'month'
-      - 'day'
-  'one_hot_encoder':
-      - <OneHotEncoder(sparse_output=False).transform(X[string()])>
-      - <OrdinalEncoder().transform(X[string()])>
-  'ridge': Ridge(alpha=<α>)
-  'α':
-      - 1.0
-      - 10.0
-- 'encode_datetime': <EncodeDatetime(resolution=<time res>).transform(col) for col in X[any_date()]>
-  'time res':
-      - 'month'
-      - 'day'
-  'one_hot_encoder':
-      - <OneHotEncoder(sparse_output=False).transform(X[string()])>
-      - <OrdinalEncoder().transform(X[string()])>
-  'ridge': LogisticRegression(C=<C>)
+  'classifier': LogisticRegression(C=<C>)
   'C':
       - 0.1
       - 1.0
@@ -877,7 +802,8 @@ pipe.chain(
     s.cols("B").one_hot_encoder(sparse_output=False).rename_columns("<ohe-B>{}"),
     s.cols("A").one_hot_encoder(sparse_output=False).rename_columns("<ohe-A>{}"),
     s.glob("<ohe-[BA]>*").polynomial_features(
-           degree=2, interaction_only=True, include_bias=False),
+        degree=2, interaction_only=True, include_bias=False
+    ),
 ).sample().iloc[0]
 ```
 <!-- output -->
