@@ -607,6 +607,37 @@ print(p.get_param_grid_description())
 
 ```
 
+# Naming options
+
+If we want to give a name to individual choices we can pass keyword arguments to `choose`.
+This can be useful to get more human-readable descriptions of pipelines and parameters.
+The example above can be adapted:
+
+```python
+regressor = BaggingRegressor(
+    choose(
+        ridge=RidgeClassifier(alpha=choose(1.0, 10.0).name("α")),
+        logistic=LogisticRegression(C=choose(0.1, 1.0).name("C")),
+    ).name("bagged")
+)
+p = pipe.use(regressor)
+print(p.get_param_grid_description())
+```
+<!-- output -->
+```
+- 'bagged': 'ridge'
+  'α':
+      - 1.0
+      - 10.0
+- 'bagged': 'logistic'
+  'C':
+      - 0.1
+      - 1.0
+
+```
+
+(note if we want to use names that are not valid python identifiers we can always use the dict unpacking syntax `choose(**{'my name': 10})`).
+
 # Choosing among several estimators
 
 We may also want to choose among several estimators, ie have a choice for the whole step.
@@ -623,16 +654,16 @@ p = p.use(
 )
 p = p.use(
     choose(
-        OneHotEncoder(sparse_output=False),
-        OrdinalEncoder(),
+        one_hot=OneHotEncoder(sparse_output=False),
+        ordinal=OrdinalEncoder(),
     ),
     cols=s.string(),
     name="cat-encoder",
 )
 p = p.use(
     choose(
-        RidgeClassifier(alpha=choose(1.0, 10.0).name("α")),
-        LogisticRegression(C=choose(0.1, 1.0).name("C")),
+        ridge=RidgeClassifier(alpha=choose(1.0, 10.0).name("α")),
+        logistic=LogisticRegression(C=choose(0.1, 1.0).name("C")),
     ),
     name="classifier",
 )
@@ -666,13 +697,13 @@ encode_datetime:
 cat-encoder:
     cols: string()
     choose:
-        - OneHotEncoder(sparse_output=False)
-        - OrdinalEncoder()
+        - one_hot = OneHotEncoder(sparse_output=False)
+        - ordinal = OrdinalEncoder()
 classifier:
     cols: all()
     choose:
-        - RidgeClassifier(alpha=choose(1.0, 10.0).name('α'))
-        - LogisticRegression(C=choose(0.1, 1.0).name('C'))
+        - ridge = RidgeClassifier(alpha=choose(1.0, 10.0).name('α'))
+        - logistic = LogisticRegression(C=choose(0.1, 1.0).name('C'))
 
 ```
 
@@ -685,9 +716,9 @@ print(p.get_param_grid_description())
       - 'month'
       - 'day'
   'cat-encoder':
-      - <OneHotEncoder(sparse_output=False).transform(X[string()])>
-      - <OrdinalEncoder().transform(X[string()])>
-  'classifier': RidgeClassifier(alpha=<α>)
+      - 'one_hot'
+      - 'ordinal'
+  'classifier': 'ridge'
   'α':
       - 1.0
       - 10.0
@@ -695,9 +726,9 @@ print(p.get_param_grid_description())
       - 'month'
       - 'day'
   'cat-encoder':
-      - <OneHotEncoder(sparse_output=False).transform(X[string()])>
-      - <OrdinalEncoder().transform(X[string()])>
-  'classifier': LogisticRegression(C=<C>)
+      - 'one_hot'
+      - 'ordinal'
+  'classifier': 'logistic'
   'C':
       - 0.1
       - 1.0
@@ -715,11 +746,11 @@ p = pipe.chain(
     s.cols("C").to_datetime(),
     s.any_date().encode_datetime(resolution=choose("month", "day").name("time res")),
     s.string()
-    .use(choose(OneHotEncoder(sparse_output=False), OrdinalEncoder()))
+    .use(choose(one_hot=OneHotEncoder(sparse_output=False), ordinal=OrdinalEncoder()))
     .name("encoder"),
     choose(
-        RidgeClassifier(alpha=choose(1.0, 10.0).name("α")),
-        LogisticRegression(C=choose(0.1, 1.0).name("C")),
+        ridge=RidgeClassifier(alpha=choose(1.0, 10.0).name("α")),
+        logistic=LogisticRegression(C=choose(0.1, 1.0).name("C")),
     ).name("classifier"),
 )
 
@@ -731,9 +762,9 @@ print(p.get_param_grid_description())
       - 'month'
       - 'day'
   'encoder':
-      - <OneHotEncoder(sparse_output=False).transform(X[string()])>
-      - <OrdinalEncoder().transform(X[string()])>
-  'classifier': RidgeClassifier(alpha=<α>)
+      - 'one_hot'
+      - 'ordinal'
+  'classifier': 'ridge'
   'α':
       - 1.0
       - 10.0
@@ -741,9 +772,9 @@ print(p.get_param_grid_description())
       - 'month'
       - 'day'
   'encoder':
-      - <OneHotEncoder(sparse_output=False).transform(X[string()])>
-      - <OrdinalEncoder().transform(X[string()])>
-  'classifier': LogisticRegression(C=<C>)
+      - 'one_hot'
+      - 'ordinal'
+  'classifier': 'logistic'
   'C':
       - 0.1
       - 1.0
@@ -840,4 +871,62 @@ E                                   7.2
 <ohe-A>A_3.0 <ohe-A>A_5.0           0.0
 <ohe-A>A_4.0 <ohe-A>A_5.0           0.0
 Name: 0, dtype: object
+```
+
+# hyperparam tuning example with gridsearch
+
+```python
+import pandas as pd
+from sklearn import datasets
+from sklearn.feature_selection import SelectKBest, f_regression
+from sklearn.dummy import DummyRegressor
+from sklearn.linear_model import Ridge
+
+from skrub._pipe import Pipe, choose
+
+X, y = datasets.make_regression(random_state=0)
+
+pipe = Pipe().chain(
+    SelectKBest(k=choose(10, 20).name("select k"), score_func=f_regression),
+    choose(
+        ridge=Ridge(alpha=choose(1, 10).name("α")),
+        dummy=DummyRegressor(),
+    ).name("regressor"),
+)
+
+X = pd.DataFrame(X, columns=map(str, range(X.shape[1])))
+gs = pipe.get_grid_search().fit(X, y)
+print(pipe.get_cv_results_description(gs))
+```
+<!-- output -->
+```
+Best params:
+    score: 0.792
+    'regressor': 'ridge'
+    'α': 1
+    'select k': 20
+All combinations:
+    - score: 0.697
+      'regressor': 'ridge'
+      'α': 1
+      'select k': 10
+    - score: 0.792
+      'regressor': 'ridge'
+      'α': 1
+      'select k': 20
+    - score: 0.661
+      'regressor': 'ridge'
+      'α': 10
+      'select k': 10
+    - score: 0.735
+      'regressor': 'ridge'
+      'α': 10
+      'select k': 20
+    - score: -0.00598
+      'regressor': 'dummy'
+      'select k': 10
+    - score: -0.00598
+      'regressor': 'dummy'
+      'select k': 20
+
 ```
