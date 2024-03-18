@@ -86,10 +86,13 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.linear_model import Ridge
 from skrub._to_numeric import ToNumeric
 
-p = pipe.use(ToDatetime(), cols="C")
-p = p.use(EncodeDatetime(), cols=s.any_date(), name="encode-dt")
-p = p.use(OneHotEncoder(sparse_output=False), cols=s.string())
-p = p.use(Ridge())
+p = (
+    pipe
+    .use(ToDatetime(), cols="C")
+    .use(EncodeDatetime(), cols=s.any_date(), name="encode-dt")
+    .use(OneHotEncoder(sparse_output=False), cols=s.string())
+    .use(Ridge())
+)
 p
 ```
 <!-- output -->
@@ -156,7 +159,7 @@ NamedParamPipeline(steps=[('to_datetime',
                           ('ridge', Ridge())])
 ```
 
-This is a regular scikit-learn `Pipeline`.
+This is a regular scikit-learn `Pipeline`, with `fit` and `transform` or `predict` methods.
 We can also see a more human-readable summary of the steps.
 
 ```python
@@ -184,7 +187,10 @@ If the transformation fails we see at which step it failed and the input data fo
 ```python
 from sklearn.preprocessing import StandardScaler
 
-(pipe.use(ToDatetime()).use(StandardScaler()).use(Ridge()))
+(pipe
+ .use(ToDatetime())
+ .use(StandardScaler())
+ .use(Ridge()))
 ```
 <!-- output -->
 ```
@@ -211,9 +217,10 @@ Note:
 We can also ask to see only the part of the output that was created by the last step:
 
 ```python
-(pipe.use(ToDatetime(), cols="C").use(EncodeDatetime(), cols=s.any_date())).sample(
-    last_step_only=True
-)
+(pipe
+ .use(ToDatetime(), cols="C")
+ .use(EncodeDatetime(), cols=s.any_date())
+ .sample(last_step_only=True))
 
 ```
 <!-- output -->
@@ -415,7 +422,8 @@ Otherwise we always have the usual `step_name__param_name` grid-search name.
 from skrub._pipe import choose
 
 p = (
-    pipe.use(ToDatetime(), cols="C")
+    pipe
+    .use(ToDatetime(), cols="C")
     .use(
         EncodeDatetime(resolution=choose("month", "day").name("time res")),
         cols=s.any_date(),
@@ -477,8 +485,8 @@ ridge:
 
 ```
 
-And we can obtain a scikit-learn `GridSearchCV` that we can use to tune hyperparameters.
-This is not yet in the prototybe but we should also have methods (or a parameter) to get a randomised or successive halving object instead.
+And we can obtain a scikit-learn `GridSearchCV` or `RandomizedSearchCV` that we can use to tune hyperparameters.
+This is not yet in the prototybe but we should also have methods (or a parameter) to get a successive halving object as well.
 
 ```python
 p.get_grid_search()
@@ -642,10 +650,13 @@ print(p.get_param_grid_description())
 
 We may also want to choose among several estimators, ie have a choice for the whole step.
 We can pass a `Choice` to `use`: `pipe.use(choose(RidgeClassifier(), LogisticRegression()))`.
+`optional` is a shorthand for choosing between a step and passthrough.
+We also have `choose_int` and `choose_float` to get int or floats within a range in a linear or log scale, possibly discretized.
 
 
 ```python
-from sklearn.preprocessing import OrdinalEncoder
+from sklearn.preprocessing import OrdinalEncoder, StandardScaler
+from skrub._pipe import choose_float, optional
 
 p = pipe.use(ToDatetime(), cols="C")
 p = p.use(
@@ -660,10 +671,11 @@ p = p.use(
     cols=s.string(),
     name="cat-encoder",
 )
+p = p.use(optional(StandardScaler()))
 p = p.use(
     choose(
-        ridge=RidgeClassifier(alpha=choose(1.0, 10.0).name("α")),
-        logistic=LogisticRegression(C=choose(0.1, 1.0).name("C")),
+        ridge=RidgeClassifier(alpha=choose_float(0.01, 100.0, log=True).name("α")),
+        logistic=LogisticRegression(C=choose_float(0.01, 100.0, log=True).name("C")),
     ),
     name="classifier",
 )
@@ -671,16 +683,18 @@ p
 ```
 <!-- output -->
 ```
-<Pipe: 3 transformations + predictor>
+<Pipe: 4 transformations + predictor>
 Steps:
-0: to_datetime, 1: encode_datetime, 2: cat-encoder, 3: classifier
+0: to_datetime, 1: encode_datetime, 2: cat-encoder, 3: standard_scaler, 4: classifier
 Sample of transformed data:
-   A  C_year  C_month  C_total_seconds    D    E  B_one  B_two
-0  3  2012.0      2.0     1328918400.0  2.5  7.2    0.0    1.0
-1  1  1998.0      2.0      886291200.0  0.5  5.2    1.0    0.0
-2  2  2027.0      3.0     1804636800.0  1.5  6.2    1.0    0.0
-3  4  1999.0      4.0      924825600.0  3.5  8.2    0.0    1.0
-4  5  1901.0      1.0    -2177452800.0  4.5  9.2    0.0    1.0
+          A    C_year   C_month  ...         E     B_one     B_two
+0  0.000000  0.553258 -0.392232  ...  0.000000 -0.816497  0.816497
+1 -1.414214  0.238396 -0.392232  ... -1.414214  1.224745 -1.224745
+2 -0.707107  0.890610  0.588348  ... -0.707107  1.224745 -1.224745
+3  0.707107  0.260886  1.568929  ...  0.707107 -0.816497  0.816497
+4  1.414214 -1.943149 -1.372813  ...  1.414214 -0.816497  0.816497
+
+[5 rows x 8 columns]
 ```
 
 ```python
@@ -696,14 +710,18 @@ encode_datetime:
     estimator: EncodeDatetime(resolution=choose('month', 'day').name('time res'))
 cat-encoder:
     cols: string()
-    choose:
+    choose estimator from:
         - one_hot = OneHotEncoder(sparse_output=False)
         - ordinal = OrdinalEncoder()
+standard_scaler:
+    OPTIONAL STEP
+    cols: all()
+    estimator: StandardScaler()
 classifier:
     cols: all()
-    choose:
-        - ridge = RidgeClassifier(alpha=choose(1.0, 10.0).name('α'))
-        - logistic = LogisticRegression(C=choose(0.1, 1.0).name('C'))
+    choose estimator from:
+        - ridge = RidgeClassifier(alpha=choose_float(0.01, 100.0, log=True).name('α'))
+        - logistic = LogisticRegression(C=choose_float(0.01, 100.0, log=True).name('C'))
 
 ```
 
@@ -718,26 +736,28 @@ print(p.get_param_grid_description())
   'cat-encoder':
       - 'one_hot'
       - 'ordinal'
+  'standard_scaler':
+      - 'true'
+      - 'false'
   'classifier': 'ridge'
-  'α':
-      - 1.0
-      - 10.0
+  'α': choose_float(0.01, 100.0, log=True)
 - 'time res':
       - 'month'
       - 'day'
   'cat-encoder':
       - 'one_hot'
       - 'ordinal'
+  'standard_scaler':
+      - 'true'
+      - 'false'
   'classifier': 'logistic'
-  'C':
-      - 0.1
-      - 1.0
+  'C': choose_float(0.01, 100.0, log=True)
 
 ```
 
 
 <details>
-<summary>With the allternative APIs</summary>
+<summary>With the alternative APIs</summary>
 
 ## `Selector.use` (option 2)
 
@@ -745,9 +765,11 @@ print(p.get_param_grid_description())
 p = pipe.chain(
     s.cols("C").to_datetime(),
     s.any_date().encode_datetime(resolution=choose("month", "day").name("time res")),
-    s.string()
-    .use(choose(one_hot=OneHotEncoder(sparse_output=False), ordinal=OrdinalEncoder()))
-    .name("encoder"),
+    s.string().use(
+        choose(
+            one_hot=OneHotEncoder(sparse_output=False),
+            ordinal=OrdinalEncoder())
+        ).name("encoder"),
     choose(
         ridge=RidgeClassifier(alpha=choose(1.0, 10.0).name("α")),
         logistic=LogisticRegression(C=choose(0.1, 1.0).name("C")),
@@ -873,60 +895,68 @@ E                                   7.2
 Name: 0, dtype: object
 ```
 
-# hyperparam tuning example with gridsearch
+# Hyperparam tuning example
 
 ```python
 import pandas as pd
 from sklearn import datasets
 from sklearn.feature_selection import SelectKBest, f_regression
-from sklearn.dummy import DummyRegressor
-from sklearn.linear_model import Ridge
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import Ridge, Lasso
 
-from skrub._pipe import Pipe, choose
+pd.set_option("display.width", 200)
+pd.set_option("display.max_columns", 10)
+
+from skrub._pipe import Pipe, choose, optional, choose_float
 
 X, y = datasets.make_regression(random_state=0)
 
 pipe = Pipe().chain(
-    SelectKBest(k=choose(10, 20).name("select k"), score_func=f_regression),
+    SelectKBest(k=choose(10, 20, 100).name("k"), score_func=f_regression),
+    optional(StandardScaler()).name("rescale"),
     choose(
-        ridge=Ridge(alpha=choose(1, 10).name("α")),
-        dummy=DummyRegressor(),
+        ridge=Ridge(alpha=choose_float(0.01, 100.0, log=True).name("ridge.α")),
+        lasso=Lasso(alpha=choose_float(0.1, 100.0, log=True).name("lasso.α")),
     ).name("regressor"),
 )
 
 X = pd.DataFrame(X, columns=map(str, range(X.shape[1])))
-gs = pipe.get_grid_search().fit(X, y)
-print(pipe.get_cv_results_description(gs))
+search = pipe.get_randomized_search(n_iter=32).fit(X, y)
+print(pipe.get_cv_results_table(search))
 ```
 <!-- output -->
 ```
-Best params:
-    score: 0.792
-    'regressor': 'ridge'
-    'α': 1
-    'select k': 20
-All combinations:
-    - score: 0.697
-      'regressor': 'ridge'
-      'α': 1
-      'select k': 10
-    - score: 0.792
-      'regressor': 'ridge'
-      'α': 1
-      'select k': 20
-    - score: 0.661
-      'regressor': 'ridge'
-      'α': 10
-      'select k': 10
-    - score: 0.735
-      'regressor': 'ridge'
-      'α': 10
-      'select k': 20
-    - score: -0.00598
-      'regressor': 'dummy'
-      'select k': 10
-    - score: -0.00598
-      'regressor': 'dummy'
-      'select k': 20
-
+    mean_score    k rescale regressor    ridge.α    lasso.α  fit_time  std_score
+0     0.999622  100    true     lasso        NaN   0.635497  0.008475   0.000097
+1     0.998522  100    true     lasso        NaN   1.256876  0.008649   0.000378
+2     0.992439  100   false     lasso        NaN   2.671610  0.004763   0.001760
+3     0.818178  100    true     lasso        NaN  15.262997  0.008437   0.060098
+4     0.797651   20   false     lasso        NaN   0.374613  0.004518   0.114999
+5     0.797088   20   false     lasso        NaN   1.903548  0.004518   0.107767
+6     0.797002   20   false     lasso        NaN   0.139051  0.009248   0.117007
+7     0.796481   20    true     ridge   0.030784        NaN  0.006571   0.118244
+8     0.796429   20   false     ridge   0.043162        NaN  0.004492   0.118224
+9     0.793053   20    true     ridge   0.924077        NaN  0.006470   0.117557
+10    0.784482   20   false     ridge   2.521967        NaN  0.004412   0.115872
+11    0.755150   20   false     lasso        NaN   8.175487  0.004438   0.093798
+12    0.699595   10   false     lasso        NaN   0.197072  0.004444   0.200251
+13    0.699532   10    true     lasso        NaN   0.938546  0.006331   0.198820
+14    0.699367   10   false     ridge   0.022078        NaN  0.004609   0.200709
+15    0.699357   10    true     ridge   0.028232        NaN  0.006200   0.200711
+16    0.699350   10    true     ridge   0.031072        NaN  0.006181   0.200713
+17    0.699345   10   false     ridge   0.031025        NaN  0.004434   0.200714
+18    0.698547   10    true     lasso        NaN   2.613233  0.006371   0.195116
+19    0.696782   10   false     ridge   0.995502        NaN  0.004356   0.201152
+20    0.694957   10    true     ridge   1.750122        NaN  0.006298   0.201327
+21    0.691919  100    true     ridge   0.488130        NaN  0.008358   0.128213
+22    0.667502   10    true     ridge   9.533996        NaN  0.006345   0.198730
+23    0.643554   10    true     ridge  15.476385        NaN  0.006209   0.193876
+24    0.574500   10    true     lasso        NaN  20.463201  0.006267   0.164964
+25    0.572064  100    true     ridge  13.862272        NaN  0.008459   0.113447
+26    0.553455  100    true     ridge  17.295971        NaN  0.008444   0.109960
+27    0.490367  100   false     ridge  28.827784        NaN  0.004769   0.097673
+28    0.414345  100   false     lasso        NaN  29.954973  0.004693   0.136744
+29    0.334967  100   false     lasso        NaN  34.409654  0.004734   0.122472
+30    0.334361   10   false     lasso        NaN  34.455669  0.004579   0.122190
+31    0.174537   10   false     lasso        NaN  47.765130  0.004447   0.065144
 ```

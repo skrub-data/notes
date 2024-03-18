@@ -56,4 +56,4 @@ gs = pipe.get_grid_search().fit(employees, salaries)
 gs.best_params_
 
 # +
-print(pipe.get_best_params_description(gs))
+print(pipe.get_cv_results_description(gs))
